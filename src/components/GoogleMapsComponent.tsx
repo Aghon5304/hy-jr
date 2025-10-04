@@ -110,6 +110,94 @@ export default function GoogleMapsComponent({
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string>('');
 
+  // Function to calculate distance between a point and a line segment
+  const distanceToLineSegment = (point: {lat: number, lng: number}, lineStart: {lat: number, lng: number}, lineEnd: {lat: number, lng: number}): number => {
+    const A = point.lat - lineStart.lat;
+    const B = point.lng - lineStart.lng;
+    const C = lineEnd.lat - lineStart.lat;
+    const D = lineEnd.lng - lineStart.lng;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    if (lenSq !== 0) {
+      param = dot / lenSq;
+    }
+
+    let xx, yy;
+    if (param < 0) {
+      xx = lineStart.lat;
+      yy = lineStart.lng;
+    } else if (param > 1) {
+      xx = lineEnd.lat;
+      yy = lineEnd.lng;
+    } else {
+      xx = lineStart.lat + param * C;
+      yy = lineStart.lng + param * D;
+    }
+
+    const dx = point.lat - xx;
+    const dy = point.lng - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Function to check if delays collide with route paths
+  const checkDelayRouteCollisions = (delays: any[], routeConnections: any[], allStops: any[]): any[] => {
+    const collisions: any[] = [];
+    const collisionThreshold = 0.003; // ~300m in degrees (approximate)
+
+    delays.forEach(delay => {
+      routeConnections.forEach(route => {
+        // Get shape points for this route
+        if (route.shapePoints && route.shapePoints.length > 1) {
+          // Check collision with shape points
+          for (let i = 0; i < route.shapePoints.length - 1; i++) {
+            const distance = distanceToLineSegment(
+              delay.location,
+              { lat: route.shapePoints[i].lat, lng: route.shapePoints[i].lng },
+              { lat: route.shapePoints[i + 1].lat, lng: route.shapePoints[i + 1].lng }
+            );
+            
+            if (distance < collisionThreshold) {
+              collisions.push({
+                delay: delay,
+                route: route,
+                distance: distance
+              });
+              break; // Found collision for this route, no need to check more segments
+            }
+          }
+        } else {
+          // Fallback: check collision with simplified stop-to-stop lines
+          const routeStops = allStops.filter(stop => 
+            stop.type === 'origin' || stop.type === 'destination'
+          );
+          
+          if (routeStops.length >= 2) {
+            for (let i = 0; i < routeStops.length - 1; i++) {
+              const distance = distanceToLineSegment(
+                delay.location,
+                { lat: routeStops[i].lat, lng: routeStops[i].lng },
+                { lat: routeStops[i + 1].lat, lng: routeStops[i + 1].lng }
+              );
+              
+              if (distance < collisionThreshold) {
+                collisions.push({
+                  delay: delay,
+                  route: route,
+                  distance: distance
+                });
+                break;
+              }
+            }
+          }
+        }
+      });
+    });
+
+    return collisions;
+  };
+
   // Load Google Maps script
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.google) {
@@ -277,9 +365,9 @@ export default function GoogleMapsComponent({
       });
       polylinesRef.current = [];
       
-      // Draw route lines between connected stops
+      // Draw route lines using shape points
       if (stops.length === 2 && stops[0].routeConnections && stops[0].routeConnections.length > 0) {
-        console.log('🗺️ Drawing route lines. Map instance:', mapInstanceRef.current);
+        console.log('🗺️ Drawing route shapes using shape points');
         console.log('🚌 Route connections to draw:', stops[0].routeConnections.length);
         const routeConnections = stops[0].routeConnections;
       
@@ -288,26 +376,33 @@ export default function GoogleMapsComponent({
           const color = colors[index % colors.length];
           
           try {
-            // Create polyline without setting map first
-            const routeLine = new window.google.maps.Polyline({
-              path: [
+            let routePath: any[] = [];
+            
+            // Use shape points if available
+            if (connection.shapePoints && connection.shapePoints.length > 1) {
+              console.log(`🗺️ Using ${connection.shapePoints.length} shape points for route ${connection.routeShortName}`);
+              routePath = connection.shapePoints.map((point: any) => ({
+                lat: point.lat,
+                lng: point.lng
+              }));
+            } else {
+              // Fallback to simple line between stops
+              console.log(`🗺️ Using simple line for route ${connection.routeShortName} (no shape points)`);
+              routePath = [
                 { lat: stops[0].lat, lng: stops[0].lng },
                 { lat: stops[1].lat, lng: stops[1].lng }
-              ],
+              ];
+            }
+            
+            // Create polyline with the path
+            const routeLine = new window.google.maps.Polyline({
+              path: routePath,
               geodesic: true,
               strokeColor: color,
               strokeOpacity: 0.8,
-              strokeWeight: 6
+              strokeWeight: 4,
+              map: mapInstanceRef.current
             });
-            
-            // Then set the map separately with additional validation
-            if (mapInstanceRef.current && mapInstanceRef.current.getDiv) {
-              console.log('🗺️ Setting map for polyline, map type:', typeof mapInstanceRef.current);
-              routeLine.setMap(mapInstanceRef.current);
-            } else {
-              console.error('❌ Invalid map instance for polyline');
-              return; // Skip this polyline
-            }
             
             // Add route info window
             const routeInfoWindow = new window.google.maps.InfoWindow({
@@ -316,6 +411,9 @@ export default function GoogleMapsComponent({
                   <h3 style="margin: 0 0 10px 0; font-size: 16px;">🚌 ${connection.routeShortName || connection.routeId}</h3>
                   <p style="margin: 5px 0; font-size: 12px; color: #666;">
                     <strong>Route:</strong> ${connection.routeLongName || 'Direct connection'}
+                  </p>
+                  <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                    <strong>Shape Points:</strong> ${connection.shapePoints?.length || 0}
                   </p>
                   <p style="margin: 5px 0; font-size: 12px; color: #666;">
                     <strong>Source:</strong> ${connection.source}
@@ -330,15 +428,36 @@ export default function GoogleMapsComponent({
             });
             
             polylinesRef.current.push(routeLine);
+            
           } catch (error) {
             console.error('Error creating route line:', error);
           }
         });
+
+        // Check for collisions between delays and route paths
+        if (delays.length > 0) {
+          console.log('🚨 Checking for delay-route collisions...');
+          const collisions = checkDelayRouteCollisions(delays, routeConnections, stops);
+          
+          if (collisions.length > 0) {
+            console.log(`⚠️ Found ${collisions.length} delay-route collisions:`, collisions);
+            
+            // Trigger alert for collisions
+            const collisionMessages = collisions.map((collision: any) => {
+              const delayInfo = getDelayIcon(collision.delay.cause);
+              return `${delayInfo.icon} ${delayInfo.name} on Route ${collision.route.routeShortName}`;
+            });
+            
+            alert(`🚨 ROUTE DISRUPTIONS DETECTED!\n\n${collisionMessages.join('\n')}\n\nThese delays may affect your planned route. Consider alternative routes or expect delays.`);
+          } else {
+            console.log('✅ No delay-route collisions detected');
+          }
+        }
       }
     }, 500); // 500ms delay to ensure map is ready
 
     return () => clearTimeout(drawRoutes);
-  }, [stops, isLoaded]);
+  }, [stops, delays, isLoaded]);
 
   // Update vehicle markers
   useEffect(() => {

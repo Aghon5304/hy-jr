@@ -2,7 +2,7 @@
   {
     "id": "1701234567890",
     "cause": "delays",
-    "vehicleNumber": "1234",
+    "vehicleNumber": "DN034",
     "location": {
       "lat": 50.0647,
       "lng": 19.945
@@ -12,7 +12,7 @@
   {
     "id": "1701234567891",
     "cause": "route-difficulties",
-    "vehicleNumber": "5678",
+    "vehicleNumber": "HY842",
     "location": {
       "lat": 50.071,
       "lng": 19.9
@@ -34,8 +34,8 @@
     "cause": "route-difficulties",
     "vehicleNumber": "",
     "location": {
-      "lat": 40.7128,
-      "lng": -74.006
+      "lat": 50.064276111,
+      "lng": 19.924364444
     },
     "timestamp": "2025-10-04T22:38:18.554Z"
   }
