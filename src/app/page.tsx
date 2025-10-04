@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 import TripPlanner, { TripPlanData } from '@/components/TripPlanner';
 import ReportIssueWidget from '@/components/ReportIssueWidget';
@@ -8,6 +7,7 @@ import { Report } from '@/types/Report';
 import ReportDifficultyDrawer from '@/components/ReportDifficultyDrawer';
 import GoogleMapsComponent from '@/components/GoogleMapsComponent'; // DODANY IMPORT
 import TripIssuesNotification from '@/components/TripIssuesNotification';
+import TripInfoPanel from '@/components/TripInfoPanel';
 
 // Styling variables
 const styles = {
@@ -31,6 +31,7 @@ export default function Home() {
   const [isDifficultyDrawerOpen, setIsDifficultyDrawerOpen] = useState(false);
   const [showTripIssuesNotification, setShowTripIssuesNotification] = useState(false);
   const [selectedIssueType, setSelectedIssueType] = useState<string>('');
+  const [isTripInfoOpen, setIsTripInfoOpen] = useState(false);
   const [searchedStops, setSearchedStops] = useState<any[]>([]);
 
   // Function to find routes that connect two stops
@@ -231,13 +232,13 @@ export default function Home() {
           {/* Bottom buttons group - Horizontal & Slim */}
           <div className={styles.floatingCard}>
             <div className="flex gap-2">
-              <Link 
-                href="/TripInfo"
+              <button
+                onClick={() => setIsTripInfoOpen(true)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center space-x-1 active:bg-gray-300 text-sm"
               >
                 <span>👀</span>
                 <span>View Trip</span>
-              </Link>
+              </button>
 
               <button
                 onClick={() => setIsDifficultyDrawerOpen(true)}
@@ -264,6 +265,12 @@ export default function Home() {
           onClose={() => setShowTripIssuesNotification(false)}
         />
       )}
+
+      {/* Trip Info Slide-out Panel */}
+      <TripInfoPanel 
+        isOpen={isTripInfoOpen}
+        onClose={() => setIsTripInfoOpen(false)}
+      />
     </main>
   );
 }
