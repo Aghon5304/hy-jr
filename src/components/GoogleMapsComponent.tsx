@@ -528,8 +528,14 @@ export default function GoogleMapsComponent({
       return;
     }
 
-    // Clear existing delay markers
-    delayMarkersRef.current.forEach(marker => marker.setMap(null));
+    // Clear existing delay markers and their animations
+    delayMarkersRef.current.forEach(marker => {
+      // Clear pulse interval if exists
+      if ((marker as any).pulseInterval) {
+        clearInterval((marker as any).pulseInterval);
+      }
+      marker.setMap(null);
+    });
     delayMarkersRef.current = [];
 
     if (!showDelays) {
@@ -557,20 +563,91 @@ export default function GoogleMapsComponent({
       console.log(`🎨 Delay icon info:`, delayInfo);
 
       try {
+        // Create reverse shadow effect with pulsing waves and colored shadow
+        const createReverseShadowSVG = (color: string, shadowOpacity: number, waveRadius: number) => {
+          return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+            <svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <filter id="innerShadow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx="0" dy="2" flood-color="${color}" flood-opacity="${shadowOpacity}" stdDeviation="3"/>
+                  <feComposite operator="over"/>
+                </filter>
+              </defs>
+              
+              <!-- Pulsing wave circles -->
+              <circle cx="40" cy="36" r="${waveRadius}" 
+                      fill="none" 
+                      stroke="${color}" 
+                      stroke-width="2" 
+                      stroke-opacity="${Math.max(0, 0.8 - waveRadius * 0.02)}"/>
+              <circle cx="40" cy="36" r="${Math.max(0, waveRadius - 15)}" 
+                      fill="none" 
+                      stroke="${color}" 
+                      stroke-width="1.5" 
+                      stroke-opacity="${Math.max(0, 0.6 - (waveRadius - 15) * 0.02)}"
+                      style="${waveRadius < 15 ? 'display:none' : ''}"/>
+              <circle cx="40" cy="36" r="${Math.max(0, waveRadius - 30)}" 
+                      fill="none" 
+                      stroke="${color}" 
+                      stroke-width="1" 
+                      stroke-opacity="${Math.max(0, 0.4 - (waveRadius - 30) * 0.02)}"
+                      style="${waveRadius < 30 ? 'display:none' : ''}"/>
+              
+              <!-- Main triangle with colored reverse shadow -->
+              <path d="M40 12L60 52H20L40 12Z" 
+                    fill="transparent" 
+                    stroke="${color}" 
+                    stroke-width="5" 
+                    filter="url(#innerShadow)"/>
+              <path d="M40 12L60 52H20L40 12Z" 
+                    fill="${color}${Math.round(shadowOpacity * 255).toString(16).padStart(2, '0')}" 
+                    stroke="none"/>
+            </svg>
+          `)}`;
+        };
+
         const marker = new window.google.maps.Marker({
           position: { lat: delay.location.lat, lng: delay.location.lng },
           map: mapInstanceRef.current,
           title: `${delayInfo.name} - ${delay.vehicleNumber || 'No vehicle number'}`,
           icon: {
-            path: window.google.maps.SymbolPath.CIRCLE,
-            scale: 15, // Made bigger for visibility
-            fillColor: delayInfo.color,
-            fillOpacity: 1.0, // Made fully opaque
-            strokeWeight: 4,
-            strokeColor: '#000000' // Changed to black for better contrast
+            url: createReverseShadowSVG(delayInfo.color, 0.3, 10),
+            scaledSize: new window.google.maps.Size(80, 80),
+            anchor: new window.google.maps.Point(40, 52)
           },
-          zIndex: 2000 // Show delays above other markers
+          zIndex: 2000
         });
+
+        // Add pulsing shadow and wave animation
+        let pulseDirection = 1;
+        let currentShadowOpacity = 0.3;
+        let waveRadius = 10;
+        let waveDirection = 1;
+        
+        const pulseInterval = setInterval(() => {
+          // Shadow pulsing
+          currentShadowOpacity += pulseDirection * 0.05;
+          if (currentShadowOpacity >= 0.8) {
+            pulseDirection = -1;
+          } else if (currentShadowOpacity <= 0.1) {
+            pulseDirection = 1;
+          }
+          
+          // Wave expanding
+          waveRadius += waveDirection * 2;
+          if (waveRadius >= 50) {
+            waveRadius = 10; // Reset wave
+          }
+          
+          marker.setIcon({
+            url: createReverseShadowSVG(delayInfo.color, currentShadowOpacity, waveRadius),
+            scaledSize: new window.google.maps.Size(80, 80),
+            anchor: new window.google.maps.Point(40, 52)
+          });
+        }, 100); // Faster for smooth wave animation
+
+        // Store interval reference for cleanup
+        (marker as any).pulseInterval = pulseInterval;
 
         console.log(`✅ Created delay marker at ${delay.location.lat}, ${delay.location.lng}`);
 
@@ -678,7 +755,13 @@ export default function GoogleMapsComponent({
       markersRef.current.forEach(marker => marker.setMap(null));
       polylinesRef.current.forEach(polyline => polyline.setMap(null));
       vehicleMarkersRef.current.forEach(marker => marker.setMap(null));
-      delayMarkersRef.current.forEach(marker => marker.setMap(null));
+      delayMarkersRef.current.forEach(marker => {
+        // Clear pulse interval if exists
+        if ((marker as any).pulseInterval) {
+          clearInterval((marker as any).pulseInterval);
+        }
+        marker.setMap(null);
+      });
     };
   }, []);
 
