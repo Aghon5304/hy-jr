@@ -40,7 +40,7 @@ export default function GTFSMultiSourceViewer() {
   const [sourceData, setSourceData] = useState<SourceData[]>([]);
   const [error, setError] = useState<string>('');
   const [sources, setSources] = useState<{ [key: string]: GTFSSource }>({});
-  const [selectedSources, setSelectedSources] = useState<string[]>(['krakow']);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [globalCacheInfo, setGlobalCacheInfo] = useState<CacheInfo | null>(null);
 
   // Load available sources on component mount
