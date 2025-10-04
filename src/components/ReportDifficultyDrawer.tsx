@@ -37,50 +37,71 @@ export default function ReportDifficultyDrawer({
     setIsGettingLocation(true);
     setLocationError(null);
     
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setLocationError(null);
-          setIsGettingLocation(false);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          let errorMessage = 'Unable to get location';
-          
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = 'Location access denied. Please enable location permissions and try again.';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = 'Location information is unavailable.';
-              break;
-            case error.TIMEOUT:
-              errorMessage = 'Location request timed out. Please try again.';
-              break;
-          }
-          
-          setLocationError(errorMessage);
-          // Fallback to a default location (e.g., city center)
-          setLocation({
-            lat: 40.7128, // Default to NYC coordinates
-            lng: -74.0060
-          });
-          setIsGettingLocation(false);
-        }
-      );
-    } else {
-      setLocationError('Geolocation is not supported by this browser.');
-      // Fallback if geolocation is not supported
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      setLocationError('Location not available on server side.');
       setLocation({
         lat: 40.7128,
         lng: -74.0060
       });
       setIsGettingLocation(false);
+      return;
     }
+    
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by this browser.');
+      setLocation({
+        lat: 40.7128,
+        lng: -74.0060
+      });
+      setIsGettingLocation(false);
+      return;
+    }
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationError(null);
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        let errorMessage = 'Unable to get location';
+        
+        switch (error.code) {
+          case 1: // PERMISSION_DENIED
+            errorMessage = 'Location access denied. Please enable location permissions and try again.';
+            break;
+          case 2: // POSITION_UNAVAILABLE
+            errorMessage = 'Location information is unavailable.';
+            break;
+          case 3: // TIMEOUT
+            errorMessage = 'Location request timed out. Please try again.';
+            break;
+          default:
+            errorMessage = 'An unknown error occurred while retrieving location.';
+            break;
+        }
+        
+        setLocationError(errorMessage);
+        // Fallback to a default location (e.g., city center)
+        setLocation({
+          lat: 40.7128, // Default to NYC coordinates
+          lng: -74.0060
+        });
+        setIsGettingLocation(false);
+      },
+      options
+    );
   };
 
   const handleSubmit = () => {
