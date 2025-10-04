@@ -31,7 +31,7 @@ export default function Home() {
 
   const handlePlanTrip = (tripData: TripPlanData) => {
     console.log('Planning trip:', tripData);
-    alert(`Searching routes from ${tripData.from} to ${tripData.to} on ${tripData.date} at ${tripData.time}`);
+    alert(`Searching routes from ${tripData.from} to ${tripData.to}}`);
   };
 
   const handleReportIssue = (report: Report) => {

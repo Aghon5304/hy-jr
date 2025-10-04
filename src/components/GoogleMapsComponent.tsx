@@ -324,67 +324,6 @@ export default function GoogleMapsComponent({
   return (
     <div className="h-full w-full">
       <div ref={mapRef} className="h-full w-full rounded" />
-      
-      {/* Map Controls */}
-      <div className="absolute top-4 right-4 bg-white rounded shadow-lg p-3 space-y-2">
-        <div className="text-sm font-medium text-gray-700 mb-2">Map Layers</div>
-        
-        <label className="flex items-center space-x-2 text-sm">
-          <input
-            type="checkbox"
-            checked={showStops}
-            onChange={(e) => {
-              // This would need to be passed up to parent component
-              // For now, just showing the UI structure
-            }}
-            className="rounded"
-          />
-          <span>Stops ({stops.length})</span>
-        </label>
-        
-        <label className="flex items-center space-x-2 text-sm">
-          <input
-            type="checkbox"
-            checked={showVehicles}
-            onChange={(e) => {
-              // This would need to be passed up to parent component
-            }}
-            className="rounded"
-          />
-          <span>Vehicles ({vehicles.length})</span>
-        </label>
-        
-        <label className="flex items-center space-x-2 text-sm">
-          <input
-            type="checkbox"
-            checked={showRoutes}
-            onChange={(e) => {
-              // This would need to be passed up to parent component
-            }}
-            className="rounded"
-          />
-          <span>Routes ({routes.length})</span>
-        </label>
-      </div>
-      
-      {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-white rounded shadow-lg p-3">
-        <div className="text-sm font-medium text-gray-700 mb-2">Legend</div>
-        <div className="space-y-1 text-xs">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span>Bus Stops</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span>Tram Stops</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <span>Real-time Vehicles</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
