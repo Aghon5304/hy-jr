@@ -25,6 +25,7 @@ interface GoogleMapsProps {
   apiKey: string;
   onStopClick?: (stop: any) => void;
   onRouteClick?: (route: MappedRoute) => void;
+  onRouteCollisions?: (collisions: any[]) => void;
   showStops?: boolean;
   showRoutes?: boolean;
   showVehicles?: boolean;
@@ -96,6 +97,7 @@ export default function GoogleMapsComponent({
   apiKey,
   onStopClick,
   onRouteClick,
+  onRouteCollisions,
   showStops = true,
   showRoutes = false,
   showVehicles = true,
@@ -442,13 +444,10 @@ export default function GoogleMapsComponent({
           if (collisions.length > 0) {
             console.log(`⚠️ Found ${collisions.length} delay-route collisions:`, collisions);
             
-            // Trigger alert for collisions
-            const collisionMessages = collisions.map((collision: any) => {
-              const delayInfo = getDelayIcon(collision.delay.cause);
-              return `${delayInfo.icon} ${delayInfo.name} on Route ${collision.route.routeShortName}`;
-            });
-            
-            alert(`🚨 ROUTE DISRUPTIONS DETECTED!\n\n${collisionMessages.join('\n')}\n\nThese delays may affect your planned route. Consider alternative routes or expect delays.`);
+            // Trigger callback for collisions instead of alert
+            if (onRouteCollisions) {
+              onRouteCollisions(collisions);
+            }
           } else {
             console.log('✅ No delay-route collisions detected');
           }

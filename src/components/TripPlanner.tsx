@@ -5,7 +5,8 @@ import StopSearchInput from './StopSearchInput';
 import { MappedStop } from '@/lib/gtfsMapService';
 
 interface TripPlannerProps {
-  onPlanTrip?: (tripData: TripPlanData) => void;
+  onPlanTrip: (tripData: TripPlanData) => void;
+  isSearching?: boolean;
 }
 
 export interface TripPlanData {
@@ -21,7 +22,7 @@ export interface TripPlanData {
   };
 }
 
-export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
+export default function TripPlanner({ onPlanTrip, isSearching }: TripPlannerProps) {
   const [stops, setStops] = useState<MappedStop[]>([]);
   const [isLoadingStops, setIsLoadingStops] = useState(false);
   
@@ -123,7 +124,6 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
     });
     
     // Show user feedback
-    alert(`Searching route from "${tripData.from}" to "${tripData.to}"...`);
     
     if (onPlanTrip) {
       onPlanTrip(tripData);
@@ -156,7 +156,7 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
           />
           <button
             type="submit"
-            disabled={!tripData.fromStop || !tripData.toStop}
+            disabled={!tripData.fromStop || !tripData.toStop || isSearching}
             className="w-1/5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center active:bg-blue-800"
           >
             <span>🔍</span>
