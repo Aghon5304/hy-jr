@@ -120,3 +120,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* SIGMA ANTI-ZOOM FIX for mobile */
+html, body {
+  touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: none;
+  overscroll-behavior: none;
+}
+
+/* Prevent double-tap zoom */
+* {
+  touch-action: manipulation;
+}
+
+/* Allow text selection in input fields */
+input, textarea {
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  -ms-user-select: auto;
+  user-select: auto;
+}
