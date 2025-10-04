@@ -107,9 +107,34 @@ export default function ReportDifficultyDrawer({
     );
   };
 
-  const handleSubmit = (cause: string) => {
+  const handleSubmit = async (cause: string) => {
     if (location) {
+      try {
+        // Save to delays.json via API
+        const response = await fetch('/api/delays', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            cause,
+            vehicleNumber,
+            location
+          }),
+        });
+
+        if (response.ok) {
+          console.log('Delay report saved successfully');
+        } else {
+          console.error('Failed to save delay report');
+        }
+      } catch (error) {
+        console.error('Error submitting delay report:', error);
+      }
+
+      // Call original onSubmit callback
       onSubmit(cause, vehicleNumber, location);
+      
       // Reset form
       setSelectedCause('');
       setVehicleNumber('');

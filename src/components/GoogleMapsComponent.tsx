@@ -7,6 +7,7 @@ declare global {
   interface Window {
     google: any;
     initMap: () => void;
+    gm_authFailure: () => void;
   }
 }
 
@@ -14,6 +15,7 @@ interface GoogleMapsProps {
   stops: any[]; // Can be MappedStop[] or custom marker objects
   routes: MappedRoute[];
   vehicles: MappedVehicle[];
+  delays?: any[]; // Delay reports from delays.json
   bounds?: {
     north: number;
     south: number;
@@ -26,6 +28,7 @@ interface GoogleMapsProps {
   showStops?: boolean;
   showRoutes?: boolean;
   showVehicles?: boolean;
+  showDelays?: boolean;
 }
 
 // Helper functions
@@ -70,29 +73,52 @@ function getRouteTypeName(type: number): string {
   return names[type] || `Type ${type}`;
 }
 
+function getDelayIcon(cause: string): { icon: string; color: string; name: string } {
+  const delayTypes: Record<string, { icon: string; color: string; name: string }> = {
+    'delays': { icon: '🕐', color: '#f59e0b', name: 'Opóźnienia' },
+    'route-difficulties': { icon: '🚧', color: '#dc2626', name: 'Utrudnienia na trasie' },
+    'no-vehicle': { icon: '❌', color: '#991b1b', name: 'Brak pojazdu' },
+    'route-change': { icon: '↩️', color: '#7c3aed', name: 'Zmiana trasy' },
+    'accessibility': { icon: '♿', color: '#0891b2', name: 'Problemy z dostępnością' },
+    'breakdown': { icon: '⚠️', color: '#ea580c', name: 'Awaria pojazdu' },
+    'overcrowding': { icon: '👥', color: '#65a30d', name: 'Tłok/Przepełnienie' },
+    'ticket-control': { icon: '🎫', color: '#4338ca', name: 'Kontrola biletów' }
+  };
+  return delayTypes[cause] || { icon: '⚠️', color: '#6b7280', name: 'Inne utrudnienie' };
+}
+
 export default function GoogleMapsComponent({
   stops,
   routes,
   vehicles,
+  delays = [],
   bounds,
   apiKey,
   onStopClick,
   onRouteClick,
   showStops = true,
   showRoutes = false,
-  showVehicles = true
+  showVehicles = true,
+  showDelays = false
 }: GoogleMapsProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const polylinesRef = useRef<any[]>([]);
   const vehicleMarkersRef = useRef<any[]>([]);
+  const delayMarkersRef = useRef<any[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string>('');
 
   // Load Google Maps script
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.google) {
+      // Suppress Google Maps error alerts
+      window.gm_authFailure = () => {
+        console.warn('Google Maps API key not configured or billing not enabled');
+        // Don't show alert, just silently fail
+      };
+
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
       script.async = true;
@@ -103,7 +129,7 @@ export default function GoogleMapsComponent({
       };
       
       script.onerror = () => {
-        setError('Failed to load Google Maps API');
+        setError('Google Maps API not available');
       };
       
       document.head.appendChild(script);
@@ -127,6 +153,14 @@ export default function GoogleMapsComponent({
           zoom: 12,
           center: center,
           mapTypeId: 'roadmap',
+          disableDefaultUI: true, // Removes all default UI controls
+          zoomControl: false, // Disable zoom buttons
+          mapTypeControl: false, // Disable map type selector
+          scaleControl: false, // Disable scale control
+          streetViewControl: false, // Disable street view control
+          rotateControl: false, // Disable rotate control
+          fullscreenControl: false, // Disable fullscreen control
+          gestureHandling: 'greedy', // Allow all gestures without requiring ctrl/cmd
           styles: [
             {
               featureType: 'poi',
@@ -143,20 +177,31 @@ export default function GoogleMapsComponent({
 
         mapInstanceRef.current = map;
 
-        // Fit bounds to show all stops
-        if (stops.length > 0) {
+        // Fit bounds to show all stops and delays
+        const allPoints = [...stops];
+        if (delays && delays.length > 0) {
+          delays.forEach(delay => {
+            allPoints.push({
+              lat: delay.location.lat,
+              lng: delay.location.lng
+            });
+          });
+        }
+
+        if (allPoints.length > 0) {
           const boundsObj = new window.google.maps.LatLngBounds();
-          stops.forEach(stop => {
-            boundsObj.extend(new window.google.maps.LatLng(stop.lat, stop.lng));
+          allPoints.forEach(point => {
+            boundsObj.extend(new window.google.maps.LatLng(point.lat, point.lng));
           });
           map.fitBounds(boundsObj);
+          console.log('🗺️ Map bounds set to include', allPoints.length, 'points');
         }
 
       } catch (err) {
         setError('Failed to initialize map: ' + (err as Error).message);
       }
     }
-  }, [isLoaded, bounds, stops.length]);
+  }, [isLoaded, bounds, stops.length, delays.length]);
 
   // Update stops markers
   useEffect(() => {
@@ -349,6 +394,102 @@ export default function GoogleMapsComponent({
     });
   }, [vehicles, showVehicles, isLoaded]);
 
+  // Update delay markers
+  useEffect(() => {
+    console.log('🚨 Delay markers useEffect triggered:', {
+      mapLoaded: !!mapInstanceRef.current,
+      isLoaded,
+      showDelays,
+      delaysCount: delays.length,
+      delays: delays
+    });
+
+    if (!mapInstanceRef.current || !isLoaded) {
+      console.log('❌ Map not ready for delay markers');
+      return;
+    }
+
+    // Clear existing delay markers
+    delayMarkersRef.current.forEach(marker => marker.setMap(null));
+    delayMarkersRef.current = [];
+
+    if (!showDelays) {
+      console.log('❌ showDelays is false');
+      return;
+    }
+
+    if (delays.length === 0) {
+      console.log('❌ No delays to display');
+      return;
+    }
+
+    console.log(`🚨 Adding ${delays.length} delay markers to map`);
+
+    // Add delay markers
+    delays.forEach((delay, index) => {
+      console.log(`🚨 Creating delay marker ${index + 1}:`, {
+        id: delay.id,
+        cause: delay.cause,
+        location: delay.location,
+        vehicleNumber: delay.vehicleNumber
+      });
+
+      const delayInfo = getDelayIcon(delay.cause);
+      console.log(`🎨 Delay icon info:`, delayInfo);
+
+      try {
+        const marker = new window.google.maps.Marker({
+          position: { lat: delay.location.lat, lng: delay.location.lng },
+          map: mapInstanceRef.current,
+          title: `${delayInfo.name} - ${delay.vehicleNumber || 'No vehicle number'}`,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 15, // Made bigger for visibility
+            fillColor: delayInfo.color,
+            fillOpacity: 1.0, // Made fully opaque
+            strokeWeight: 4,
+            strokeColor: '#000000' // Changed to black for better contrast
+          },
+          zIndex: 2000 // Show delays above other markers
+        });
+
+        console.log(`✅ Created delay marker at ${delay.location.lat}, ${delay.location.lng}`);
+
+        // Info window for delay details
+        const infoWindow = new window.google.maps.InfoWindow({
+          content: `
+            <div style="max-width: 280px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 16px; color: ${delayInfo.color};">
+                ${delayInfo.icon} ${delayInfo.name}
+              </h3>
+              ${delay.vehicleNumber ? `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Vehicle:</strong> ${delay.vehicleNumber}</p>` : ''}
+              <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                <strong>Location:</strong> ${delay.location.lat.toFixed(4)}, ${delay.location.lng.toFixed(4)}
+              </p>
+              <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                <strong>Reported:</strong> ${new Date(delay.timestamp).toLocaleString()}
+              </p>
+              <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                <strong>Report ID:</strong> ${delay.id}
+              </p>
+            </div>
+          `
+        });
+
+        marker.addListener('click', () => {
+          console.log('🚨 Delay marker clicked:', delay.id);
+          infoWindow.open(mapInstanceRef.current, marker);
+        });
+
+        delayMarkersRef.current.push(marker);
+        console.log(`📍 Total delay markers now: ${delayMarkersRef.current.length}`);
+
+      } catch (error) {
+        console.error(`❌ Error creating delay marker ${index + 1}:`, error);
+      }
+    });
+  }, [delays, showDelays, isLoaded]);
+
   // Update route polylines
   useEffect(() => {
     if (!mapInstanceRef.current || !isLoaded) return;
@@ -418,15 +559,17 @@ export default function GoogleMapsComponent({
       markersRef.current.forEach(marker => marker.setMap(null));
       polylinesRef.current.forEach(polyline => polyline.setMap(null));
       vehicleMarkersRef.current.forEach(marker => marker.setMap(null));
+      delayMarkersRef.current.forEach(marker => marker.setMap(null));
     };
   }, []);
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center bg-red-50 border border-red-200 rounded">
-        <div className="text-center text-red-700">
-          <h3 className="font-semibold mb-2">Map Error</h3>
-          <p className="text-sm">{error}</p>
+      <div className="h-full flex items-center justify-center bg-gray-100 rounded">
+        <div className="text-center text-gray-600">
+          <div className="text-4xl mb-4">🗺️</div>
+          <h3 className="font-semibold mb-2">Map View</h3>
+          <p className="text-sm">Interactive map will appear here when properly configured</p>
         </div>
       </div>
     );

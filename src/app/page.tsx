@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TripPlanner, { TripPlanData } from '@/components/TripPlanner';
 import ReportIssueWidget from '@/components/ReportIssueWidget';
 import { Report } from '@/types/Report';
@@ -35,6 +35,40 @@ export default function Home() {
   const [searchedStops, setSearchedStops] = useState<any[]>([]);
   const [liveVehicles, setLiveVehicles] = useState<any[]>([]);
   const [selectedRoutes, setSelectedRoutes] = useState<any[]>([]);
+  const [delays, setDelays] = useState<any[]>([]);
+
+  // Function to fetch delays from delays.json
+  const fetchDelays = async () => {
+    try {
+      console.log('🚨 Fetching delay reports from API...');
+      const response = await fetch('/api/delays');
+      console.log('📡 API Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        const delayReports = data.delays || [];
+        console.log(`📊 Loaded ${delayReports.length} delay reports:`, delayReports);
+        console.log('🗺️ Setting delays state:', delayReports);
+        setDelays(delayReports);
+        
+        // Log each delay location
+        delayReports.forEach((delay: any, index: number) => {
+          console.log(`🚨 Delay ${index + 1}: ${delay.cause} at ${delay.location.lat}, ${delay.location.lng}`);
+        });
+      } else {
+        console.error('❌ Failed to fetch delays, status:', response.status);
+        const errorText = await response.text();
+        console.error('❌ Error response:', errorText);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching delays:', error);
+    }
+  };
+
+  // Load delays on page initialization
+  useEffect(() => {
+    fetchDelays();
+  }, []);
 
   // Function to fetch real-time vehicle positions
   const fetchRealTimeVehicles = async (routeIds: string[]) => {
@@ -339,12 +373,14 @@ export default function Home() {
     alert(`Issue reported: ${report.reporterLocation === 'on_vehicle' ? 'On vehicle' : 'At stop'}`);
   };
 
-  const handleReportDifficulty = (cause: string, vehicleNumber: string, location: { lat: number; lng: number }) => {
+  const handleReportDifficulty = async (cause: string, vehicleNumber: string, location: { lat: number; lng: number }) => {
     console.log('Difficulty reported:', { cause, vehicleNumber, location });
-    // Here you would save to database
     setSelectedIssueType(cause);
     setIsDifficultyDrawerOpen(false);
     setShowTripIssuesNotification(true);
+    
+    // Refresh delays to show the new report on the map
+    await fetchDelays();
   };
 
   return (
@@ -355,10 +391,12 @@ export default function Home() {
           stops={searchedStops} // Show searched route stops
           routes={selectedRoutes} // Show shape-based routes with geometry
           vehicles={liveVehicles} // Show real-time vehicle positions
+          delays={delays} // Show delay reports from delays.json
           apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE"}
           showStops={true}
           showRoutes={true} // Enable route visualization
           showVehicles={true} // Enable live vehicle tracking
+          showDelays={delays.length > 0} // Enable delay report visualization only if delays exist
         />
       </div>
 
