@@ -6,7 +6,11 @@ import TripPlanner, { TripPlanData } from '@/components/TripPlanner';
 import ReportIssueWidget from '@/components/ReportIssueWidget';
 import { Report } from '@/types/Report';
 import ReportDifficultyDrawer from '@/components/ReportDifficultyDrawer';
+<<<<<<< HEAD
 import GoogleMapsComponent from '@/components/GoogleMapsComponent'; // DODANY IMPORT
+=======
+import TripIssuesNotification from '@/components/TripIssuesNotification';
+>>>>>>> 6ff3244 (notification)
 
 // Styling variables
 const styles = {
@@ -28,6 +32,8 @@ const styles = {
 
 export default function Home() {
   const [isDifficultyDrawerOpen, setIsDifficultyDrawerOpen] = useState(false);
+  const [showTripIssuesNotification, setShowTripIssuesNotification] = useState(false);
+  const [selectedIssueType, setSelectedIssueType] = useState<string>('');
 
   const handlePlanTrip = (tripData: TripPlanData) => {
     
@@ -40,8 +46,14 @@ export default function Home() {
 
   const handleReportDifficulty = (cause: string, location: { lat: number; lng: number }) => {
     console.log('Difficulty reported:', { cause, location });
+<<<<<<< HEAD
     alert(`Difficulty reported: ${cause} at location ${location.lat}, ${location.lng}`);
+=======
+    // Here you would save to database
+    setSelectedIssueType(cause);
+>>>>>>> 6ff3244 (notification)
     setIsDifficultyDrawerOpen(false);
+    setShowTripIssuesNotification(true);
   };
 
   return (
@@ -97,6 +109,14 @@ export default function Home() {
         onClose={() => setIsDifficultyDrawerOpen(false)}
         onSubmit={handleReportDifficulty}
       />
+
+      {showTripIssuesNotification && (
+        <TripIssuesNotification 
+          tripId="Line 23 - Downtown Route"
+          selectedIssueType={selectedIssueType}
+          onClose={() => setShowTripIssuesNotification(false)}
+        />
+      )}
     </main>
   );
 }
