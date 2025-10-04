@@ -72,25 +72,23 @@ export default function Home() {
             <TripPlanner onPlanTrip={handlePlanTrip} />
           </div>
           
-          {/* Bottom buttons group */}
-          <div className="space-y-4">
-            <div className={styles.floatingCard}>
+          {/* Bottom buttons group - Horizontal & Slim */}
+          <div className={styles.floatingCard}>
+            <div className="flex gap-2">
               <Link 
                 href="/TripInfo"
-                className={styles.viewTripButton}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center space-x-1 active:bg-gray-300 text-sm"
               >
-                <span className={styles.viewTripIcon}>👀</span>
-                <span>View Current Trip</span>
+                <span>👀</span>
+                <span>View Trip</span>
               </Link>
-            </div>
 
-            <div className={styles.floatingCard}>
               <button
                 onClick={() => setIsDifficultyDrawerOpen(true)}
-                className={styles.reportDifficultyButton}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center space-x-1 active:bg-red-700 text-sm"
               >
-                <span className="text-lg">⚠️</span>
-                <span>Report Difficulty</span>
+                <span>⚠️</span>
+                <span>Report Issue</span>
               </button>
             </div>
           </div>

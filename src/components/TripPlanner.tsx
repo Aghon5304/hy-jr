@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import StopSearchInput from './StopSearchInput';
+import { MappedStop } from '@/lib/gtfsMapService';
 
 interface TripPlannerProps {
   onPlanTrip?: (tripData: TripPlanData) => void;
@@ -9,6 +11,8 @@ interface TripPlannerProps {
 export interface TripPlanData {
   from: string;
   to: string;
+  fromStop?: MappedStop;
+  toStop?: MappedStop;
   // date: string;
   // time: string;
   transportModes: {
@@ -18,9 +22,14 @@ export interface TripPlanData {
 }
 
 export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
+  const [stops, setStops] = useState<MappedStop[]>([]);
+  const [isLoadingStops, setIsLoadingStops] = useState(false);
+  
   const [tripData, setTripData] = useState<TripPlanData>({
     from: '',
     to: '',
+    fromStop: undefined,
+    toStop: undefined,
     // date: new Date().toISOString().split('T')[0], // Today's date
     // time: new Date().toTimeString().slice(0, 5), // Current time
     transportModes: {
@@ -29,10 +38,66 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
     }
   });
 
-  const handleInputChange = (field: keyof TripPlanData, value: string) => {
+  // Fetch stops once for both inputs
+  useEffect(() => {
+    const fetchStops = async () => {
+      setIsLoadingStops(true);
+      try {
+        const sources = ['krakow1', 'krakow2', 'krakow3', 'ald', 'kml'];
+        const allStops: MappedStop[] = [];
+
+        for (const source of sources) {
+          try {
+            console.log(`TripPlanner: Fetching stops from ${source}...`);
+            const response = await fetch(`/api/gtfsStatic?file=stops&source=${source}`);
+            if (response.ok) {
+              const responseData = await response.json();
+              const data = responseData.data;
+              console.log(`TripPlanner: Got ${data?.length || 0} stops from ${source}`);
+              
+              const mappedStops: MappedStop[] = data?.map((stop: any) => ({
+                id: stop.stop_id,
+                name: stop.stop_name,
+                lat: parseFloat(stop.stop_lat),
+                lng: parseFloat(stop.stop_lon),
+                code: stop.stop_code,
+                zone: stop.zone_id,
+                routes: [],
+                sourceId: source
+              })) || [];
+              allStops.push(...mappedStops);
+            }
+          } catch (error) {
+            console.warn(`TripPlanner: Failed to fetch stops from ${source}:`, error);
+          }
+        }
+
+        // Remove duplicates
+        const uniqueStops = allStops.filter((stop, index, self) => 
+          index === self.findIndex((s) => 
+            s.name === stop.name && 
+            Math.abs(s.lat - stop.lat) < 0.0001 && 
+            Math.abs(s.lng - stop.lng) < 0.0001
+          )
+        );
+
+        console.log(`TripPlanner: Total unique stops: ${uniqueStops.length}`);
+        setStops(uniqueStops);
+      } catch (error) {
+        console.error('TripPlanner: Error fetching stops:', error);
+      } finally {
+        setIsLoadingStops(false);
+      }
+    };
+
+    fetchStops();
+  }, []);
+
+  const handleStopChange = (field: 'from' | 'to', value: string, stop?: MappedStop) => {
     setTripData(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
+      [`${field}Stop`]: stop
     }));
   };
 
@@ -55,101 +120,34 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-4">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-        🗺️ Plan Your Trip
-      </h2>
       
       <form onSubmit={handleSubmit} className="space-y-3">
-        {/* From and To Fields */}
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="text"
-            value={tripData.from}
-            onChange={(e) => handleInputChange('from', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="From"
-            required
-          />
-          <input
-            type="text"
+        {/* From Field - Full Width */}
+        <StopSearchInput
+          id="from-stop"
+          value={tripData.from}
+          onChange={(value, stop) => handleStopChange('from', value, stop)}
+          placeholder="From"
+          stops={stops}
+          isLoading={isLoadingStops}
+        />
+
+        {/* To Field and Submit Button */}
+        <div className="flex gap-2">
+          <StopSearchInput
+            id="to-stop"
             value={tripData.to}
-            onChange={(e) => handleInputChange('to', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onChange={(value, stop) => handleStopChange('to', value, stop)}
             placeholder="To"
-            required
+            stops={stops}
+            isLoading={isLoadingStops}
           />
-        </div>
-
-        {/* Date and Time
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            value={tripData.date}
-            onChange={(e) => handleInputChange('date', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          />
-          <input
-            type="time"
-            value={tripData.time}
-            onChange={(e) => handleInputChange('time', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          />
-        </div> */}
-
-        {/* Transport Mode Checkboxes - Inline */}
-        <div className="flex items-center justify-center space-x-6">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={tripData.transportModes.bus}
-              onChange={() => handleTransportModeChange('bus')}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span className="text-sm">🚌 Bus</span>
-          </label>
-          
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={tripData.transportModes.train}
-              onChange={() => handleTransportModeChange('train')}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span className="text-sm">🚂 Train</span>
-          </label>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={!tripData.from || !tripData.to || (!tripData.transportModes.bus && !tripData.transportModes.train)}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 active:bg-blue-800"
-        >
-          <span>🔍</span>
-          <span className="text-sm">Search Routes</span>
-        </button>
-
-        {/* Quick Suggestions - Compact */}
-        <div className="flex space-x-2">
-          <button 
-            type="button"
-            onClick={() => {
-              setTripData(prev => ({ ...prev, from: 'Central Station', to: 'Airport Terminal' }));
-            }}
-            className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 px-2 rounded-md transition-colors"
+          <button
+            type="submit"
+            disabled={!tripData.fromStop || !tripData.toStop || (!tripData.transportModes.bus && !tripData.transportModes.train)}
+            className="w-1/5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center active:bg-blue-800"
           >
-            Central → Airport
-          </button>
-          <button 
-            type="button"
-            onClick={() => {
-              setTripData(prev => ({ ...prev, from: 'Main Square', to: 'University' }));
-            }}
-            className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 px-2 rounded-md transition-colors"
-          >
-            Square → University
+            <span>🔍</span>
           </button>
         </div>
       </form>

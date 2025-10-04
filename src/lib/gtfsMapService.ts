@@ -72,7 +72,7 @@ class GTFSMapService {
   private lastMapUpdate: Date | null = null;
   private readonly MAP_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for map data
 
-  async getMapData(sourceIds: string[] = ['krakow1']): Promise<MapData> {
+  async getMapData(sourceIds: string[] = ['krakow1', 'krakow2', 'krakow3', 'ald', 'kml']): Promise<MapData> {
     // Check if we need to refresh map data
     if (this.cachedMapData && this.lastMapUpdate && 
         (Date.now() - this.lastMapUpdate.getTime()) < this.MAP_CACHE_DURATION) {
