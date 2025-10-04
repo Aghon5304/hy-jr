@@ -9,8 +9,8 @@ interface TripPlannerProps {
 export interface TripPlanData {
   from: string;
   to: string;
-  date: string;
-  time: string;
+  // date: string;
+  // time: string;
   transportModes: {
     bus: boolean;
     train: boolean;
@@ -21,8 +21,8 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
   const [tripData, setTripData] = useState<TripPlanData>({
     from: '',
     to: '',
-    date: new Date().toISOString().split('T')[0], // Today's date
-    time: new Date().toTimeString().slice(0, 5), // Current time
+    // date: new Date().toISOString().split('T')[0], // Today's date
+    // time: new Date().toTimeString().slice(0, 5), // Current time
     transportModes: {
       bus: true,
       train: true,
@@ -80,7 +80,7 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
           />
         </div>
 
-        {/* Date and Time */}
+        {/* Date and Time
         <div className="grid grid-cols-2 gap-2">
           <input
             type="date"
@@ -96,7 +96,7 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required
           />
-        </div>
+        </div> */}
 
         {/* Transport Mode Checkboxes - Inline */}
         <div className="flex items-center justify-center space-x-6">
