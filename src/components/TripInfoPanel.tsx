@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { Trip, sampleTrip, TripHelper } from '@/types/Trip';
 
 interface TripInfoPanelProps {
@@ -13,10 +14,97 @@ export default function TripInfoPanel({ isOpen, onClose }: TripInfoPanelProps) {
   const firstStep = TripHelper.getFirstStep(trip);
   const lastStep = TripHelper.getLastStep(trip);
 
+  // Drag state
+  const [dragStartX, setDragStartX] = useState<number | null>(null);
+  const [dragCurrentX, setDragCurrentX] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Calculate drag offset
+  const dragOffset = dragStartX !== null && dragCurrentX !== null 
+    ? Math.max(0, dragCurrentX - dragStartX) // Only allow dragging to the right
+    : 0;
+
+  // Handle drag start (mouse and touch)
+  const handleDragStart = useCallback((clientX: number) => {
+    setDragStartX(clientX);
+    setDragCurrentX(clientX);
+    setIsDragging(true);
+  }, []);
+
+  // Handle drag move (mouse and touch)
+  const handleDragMove = useCallback((clientX: number) => {
+    if (dragStartX === null) return;
+    setDragCurrentX(clientX);
+  }, [dragStartX]);
+
+  // Handle drag end
+  const handleDragEnd = useCallback(() => {
+    if (dragOffset > 100) { // Close if dragged more than 100px
+      onClose();
+    }
+    
+    // Reset drag state
+    setDragStartX(null);
+    setDragCurrentX(null);
+    setIsDragging(false);
+  }, [dragOffset, onClose]);
+
+  // Touch event handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    handleDragStart(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling while dragging
+    handleDragMove(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    handleDragEnd();
+  };
+
+  // Mouse event handlers (for desktop testing)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    handleDragStart(e.clientX);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    handleDragMove(e.clientX);
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) handleDragEnd();
+  };
+
   return (
-    <div className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto ${
-      isOpen ? 'translate-x-0' : 'translate-x-full'
-    }`}>
+    <>
+      {/* Invisible backdrop for dismissing panel */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sliding Panel */}
+      <div 
+        className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 transform overflow-y-auto select-none ${
+          isDragging ? '' : 'transition-transform duration-300 ease-in-out'
+        }`}
+        style={{
+          transform: isOpen 
+            ? `translateX(${dragOffset}px)` 
+            : 'translateX(100%)'
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp} // Handle mouse leaving the panel
+      >
         {/* Header with Close Button */}
         <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
           <h1 className="text-xl font-bold text-gray-900">
@@ -183,5 +271,6 @@ export default function TripInfoPanel({ isOpen, onClose }: TripInfoPanelProps) {
           </div>
         </div>
       </div>
+    </>
   );
 }
