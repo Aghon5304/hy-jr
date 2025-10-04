@@ -30,8 +30,7 @@ export default function Home() {
   const [isDifficultyDrawerOpen, setIsDifficultyDrawerOpen] = useState(false);
 
   const handlePlanTrip = (tripData: TripPlanData) => {
-    console.log('Planning trip:', tripData);
-    alert(`Searching routes from ${tripData.from} to ${tripData.to}}`);
+    
   };
 
   const handleReportIssue = (report: Report) => {
