@@ -170,15 +170,24 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
 
         {/* Footer */}
         <div className="p-3 bg-gray-50 border-t">
-          <div className="flex space-x-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={handleClose}
-              className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+              className="bg-green-500 hover:bg-green-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={handleClose}
+              className="bg-red-500 hover:bg-red-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              Deny
+            </button>
+            <button
+              onClick={handleClose}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-2 rounded-lg text-sm font-medium transition-colors"
             >
               Dismiss
-            </button>
-            <button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors">
-              Find Alternative
             </button>
           </div>
         </div>
