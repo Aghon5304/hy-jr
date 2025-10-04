@@ -25,6 +25,7 @@ export default function ReportDifficultyDrawer({
   const [selectedCause, setSelectedCause] = useState('');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && !location) {
@@ -34,6 +35,7 @@ export default function ReportDifficultyDrawer({
 
   const getCurrentLocation = () => {
     setIsGettingLocation(true);
+    setLocationError(null);
     
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -42,10 +44,26 @@ export default function ReportDifficultyDrawer({
             lat: position.coords.latitude,
             lng: position.coords.longitude
           });
+          setLocationError(null);
           setIsGettingLocation(false);
         },
         (error) => {
           console.error('Error getting location:', error);
+          let errorMessage = 'Unable to get location';
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location access denied. Please enable location permissions and try again.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out. Please try again.';
+              break;
+          }
+          
+          setLocationError(errorMessage);
           // Fallback to a default location (e.g., city center)
           setLocation({
             lat: 40.7128, // Default to NYC coordinates
@@ -55,6 +73,7 @@ export default function ReportDifficultyDrawer({
         }
       );
     } else {
+      setLocationError('Geolocation is not supported by this browser.');
       // Fallback if geolocation is not supported
       setLocation({
         lat: 40.7128,
@@ -76,6 +95,7 @@ export default function ReportDifficultyDrawer({
   const handleClose = () => {
     setSelectedCause('');
     setLocation(null);
+    setLocationError(null);
     onClose();
   };
 
@@ -143,11 +163,23 @@ export default function ReportDifficultyDrawer({
               {isGettingLocation ? (
                 <p className="text-sm text-gray-500">Getting your location...</p>
               ) : location ? (
-                <p className="text-sm text-gray-600">
-                  📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-                </p>
+                <div>
+                  <p className="text-sm text-gray-600">
+                    📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+                  </p>
+                  {locationError && (
+                    <p className="text-xs text-orange-600 mt-1">
+                      {locationError} (Using default location)
+                    </p>
+                  )}
+                </div>
               ) : (
                 <p className="text-sm text-red-500">Unable to get location</p>
+              )}
+              {locationError && !location && (
+                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                  <p className="text-xs text-orange-700">{locationError}</p>
+                </div>
               )}
               <button
                 onClick={getCurrentLocation}
