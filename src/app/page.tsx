@@ -37,16 +37,15 @@ export default function Home() {
   return (
     <main className={styles.main}>
       <div className={styles.container}>
-        <h1 className={styles.title}>
-          Journey Radar
-        </h1>
-        
         <TripPlanner onPlanTrip={handlePlanTrip} />
         
-        <div className={styles.divider.container}>
-          <div className={styles.divider.line}></div>
-          <span className={styles.divider.text}>or</span>
-          <div className={styles.divider.line}></div>
+        {/* Mocked Map Component */}
+        <div className="h-[30vh] bg-green-100 rounded-2xl shadow-lg my-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-4xl mb-2">🗺️</div>
+            <div className="text-sm text-green-700 font-medium">Interactive Map</div>
+            <div className="text-xs text-green-600">Tap to explore routes</div>
+          </div>
         </div>
         
         <Link 

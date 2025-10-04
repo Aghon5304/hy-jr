@@ -56,7 +56,9 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
   };
 
   const styles = {
-    container: "bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300",
+    container: isExpanded 
+      ? "absolute bottom-0 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 z-[9999] w-80"
+      : "bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 relative w-full",
     button: "w-full p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50",
     buttonText: "font-medium text-gray-900",
     expandIcon: "text-gray-500 transition-transform duration-300",
