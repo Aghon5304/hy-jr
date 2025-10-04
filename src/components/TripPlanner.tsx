@@ -113,6 +113,18 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic validation passed - button is now functional
+    console.log('🔍 Route search initiated!', {
+      from: tripData.from,
+      to: tripData.to,
+      fromStop: tripData.fromStop,
+      toStop: tripData.toStop
+    });
+    
+    // Show user feedback
+    alert(`Searching route from "${tripData.from}" to "${tripData.to}"...`);
+    
     if (onPlanTrip) {
       onPlanTrip(tripData);
     }
@@ -144,7 +156,7 @@ export default function TripPlanner({ onPlanTrip }: TripPlannerProps) {
           />
           <button
             type="submit"
-            disabled={!tripData.fromStop || !tripData.toStop || (!tripData.transportModes.bus && !tripData.transportModes.train)}
+            disabled={!tripData.fromStop || !tripData.toStop}
             className="w-1/5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center active:bg-blue-800"
           >
             <span>🔍</span>

@@ -31,9 +31,165 @@ export default function Home() {
   const [isDifficultyDrawerOpen, setIsDifficultyDrawerOpen] = useState(false);
   const [showTripIssuesNotification, setShowTripIssuesNotification] = useState(false);
   const [selectedIssueType, setSelectedIssueType] = useState<string>('');
+  const [searchedStops, setSearchedStops] = useState<any[]>([]);
 
-  const handlePlanTrip = (tripData: TripPlanData) => {
+  // Function to find routes that connect two stops
+  const findRouteBetweenStops = async (stopId1: string, stopId2: string) => {
+    console.log('🔍 ROUTE FINDER INITIATED');
+    console.log('🎯 Target stops:', stopId1, 'and', stopId2);
     
+    try {
+      // Get stop_times data from all sources
+      const sources = ['krakow1', 'krakow2', 'krakow3', 'ald', 'kml'];
+      const routeConnections: any[] = [];
+      
+      for (const source of sources) {
+        console.log(`📡 Checking source: ${source}`);
+        try {
+          // Fetch stop_times data
+          const stopTimesResponse = await fetch(`/api/gtfsStatic?source=${source}&file=stopTimes`);
+          if (!stopTimesResponse.ok) {
+            console.log(`❌ Failed to fetch stopTimes from ${source}`);
+            continue;
+          }
+          
+          const stopTimesData = await stopTimesResponse.json();
+          const stopTimes = stopTimesData.data || [];
+          console.log(`📊 ${source}: Loaded ${stopTimes.length} stop_times records`);
+          
+          // Find trips that visit both stops
+          const tripsWithStop1 = stopTimes.filter((st: any) => st.stop_id === stopId1);
+          const tripsWithStop2 = stopTimes.filter((st: any) => st.stop_id === stopId2);
+          
+          console.log(`🚏 ${source}: Stop1 (${stopId1}) appears in ${tripsWithStop1.length} trips`);
+          console.log(`🚏 ${source}: Stop2 (${stopId2}) appears in ${tripsWithStop2.length} trips`);
+          
+          // Find common trips
+          const commonTrips = tripsWithStop1.filter((st1: any) => 
+            tripsWithStop2.some((st2: any) => st2.trip_id === st1.trip_id)
+          );
+          
+          console.log(`🔗 ${source}: Found ${commonTrips.length} common trips`);
+          
+          if (commonTrips.length > 0) {
+            console.log(`🚌 ${source}: Common trip IDs:`, commonTrips.map((t: any) => t.trip_id).slice(0, 5));
+            
+            // Get route information for these trips
+            const tripsResponse = await fetch(`/api/gtfsStatic?source=${source}&file=trips`);
+            if (tripsResponse.ok) {
+              const tripsData = await tripsResponse.json();
+              const trips = tripsData.data || [];
+              console.log(`📋 ${source}: Loaded ${trips.length} trip records`);
+              
+              const routesResponse = await fetch(`/api/gtfsStatic?source=${source}&file=routes`);
+              if (routesResponse.ok) {
+                const routesData = await routesResponse.json();
+                const routes = routesData.data || [];
+                console.log(`🗺️ ${source}: Loaded ${routes.length} route records`);
+                
+                commonTrips.forEach((trip: any) => {
+                  const tripInfo = trips.find((t: any) => t.trip_id === trip.trip_id);
+                  if (tripInfo) {
+                    const routeInfo = routes.find((r: any) => r.route_id === tripInfo.route_id);
+                    if (routeInfo) {
+                      const existingRoute = routeConnections.find(rc => rc.routeId === routeInfo.route_id);
+                      if (!existingRoute) {
+                        console.log(`✅ ${source}: Found new route connection:`, {
+                          routeId: routeInfo.route_id,
+                          shortName: routeInfo.route_short_name,
+                          longName: routeInfo.route_long_name,
+                          tripId: trip.trip_id
+                        });
+                        routeConnections.push({
+                          routeId: routeInfo.route_id,
+                          routeShortName: routeInfo.route_short_name,
+                          routeLongName: routeInfo.route_long_name,
+                          source: source,
+                          tripId: trip.trip_id
+                        });
+                      } else {
+                        console.log(`🔄 ${source}: Route already found:`, routeInfo.route_short_name);
+                      }
+                    } else {
+                      console.log(`❓ ${source}: Route info not found for route_id:`, tripInfo.route_id);
+                    }
+                  } else {
+                    console.log(`❓ ${source}: Trip info not found for trip_id:`, trip.trip_id);
+                  }
+                });
+              } else {
+                console.log(`❌ ${source}: Failed to fetch routes`);
+              }
+            } else {
+              console.log(`❌ ${source}: Failed to fetch trips`);
+            }
+          } else {
+            console.log(`⚫ ${source}: No common trips found`);
+          }
+        } catch (sourceError) {
+          console.error(`💥 Error checking source ${source}:`, sourceError);
+        }
+        console.log(`---`);
+      }
+      
+      console.log('🎯 FINAL RESULTS:');
+      console.log(`📊 Total route connections found: ${routeConnections.length}`);
+      routeConnections.forEach((connection, index) => {
+        console.log(`${index + 1}. Route ${connection.routeShortName} (${connection.routeId}) from ${connection.source}`);
+      });
+      
+      return routeConnections;
+      
+    } catch (error) {
+      console.error('💥 Critical error in route finder:', error);
+      return [];
+    }
+  };
+
+  const handlePlanTrip = async (tripData: TripPlanData) => {
+    console.log('🚀 Trip planning initiated:', tripData);
+    
+    if (!tripData.fromStop || !tripData.toStop) {
+      alert('Mission failed: Select valid stops from dropdown');
+      return;
+    }
+
+    // Find routes connecting both stops
+    const routeConnections = await findRouteBetweenStops(tripData.fromStop.id, tripData.toStop.id);
+
+    // Deploy visual markers on map
+    const stopsToShow = [
+      {
+        id: tripData.fromStop.id,
+        name: tripData.fromStop.name,
+        lat: tripData.fromStop.lat,
+        lng: tripData.fromStop.lng,
+        type: 'origin',
+        icon: '🟢', // Green for start
+        routeConnections
+      },
+      {
+        id: tripData.toStop.id,
+        name: tripData.toStop.name,
+        lat: tripData.toStop.lat,
+        lng: tripData.toStop.lng,
+        type: 'destination',
+        icon: '🔴', // Red for end
+        routeConnections
+      }
+    ];
+    
+    setSearchedStops(stopsToShow);
+    
+    console.log('Visual markers deployed:', stopsToShow);
+    console.log('Route connections found:', routeConnections);
+    
+    if (routeConnections.length > 0) {
+      const routeNames = routeConnections.map(r => r.routeShortName || r.routeId).join(', ');
+      alert(`🎯 DIRECT ROUTE FOUND!\n\n🟢 Origin: ${tripData.fromStop.name}\n🔴 Destination: ${tripData.toStop.name}\n🚌 Routes: ${routeNames}\n\nCheck the map for route visualization!`);
+    } else {
+      alert(`🚨 NO DIRECT ROUTE\n\n🟢 Origin: ${tripData.fromStop.name}\n🔴 Destination: ${tripData.toStop.name}\n\nThese stops are not connected by a direct bus route. Transfer required!`);
+    }
   };
 
   const handleReportIssue = (report: Report) => {
@@ -54,7 +210,7 @@ export default function Home() {
       {/* PRAWDZIWA GOOGLE MAPS ZAMIAST EMOJI! */}
       <div className={styles.mapBackground}>
         <GoogleMapsComponent
-          stops={[]} // Możesz dodać dane później
+          stops={searchedStops} // Show searched route stops
           routes={[]}
           vehicles={[]}
           apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE"}

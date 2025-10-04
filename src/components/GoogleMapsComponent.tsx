@@ -11,7 +11,7 @@ declare global {
 }
 
 interface GoogleMapsProps {
-  stops: MappedStop[];
+  stops: any[]; // Can be MappedStop[] or custom marker objects
   routes: MappedRoute[];
   vehicles: MappedVehicle[];
   bounds?: {
@@ -21,11 +21,53 @@ interface GoogleMapsProps {
     west: number;
   };
   apiKey: string;
-  onStopClick?: (stop: MappedStop) => void;
+  onStopClick?: (stop: any) => void;
   onRouteClick?: (route: MappedRoute) => void;
   showStops?: boolean;
   showRoutes?: boolean;
   showVehicles?: boolean;
+}
+
+// Helper functions
+function getStopColor(stop: any): string {
+  // Handle special marker types from search results
+  if (stop.type === 'origin') return '#22c55e'; // Green for start
+  if (stop.type === 'destination') return '#ef4444'; // Red for end
+  
+  // Color code based on route types served at this stop
+  if (!stop.routes || stop.routes.length === 0) return '#999999';
+  
+  // You could enhance this to check actual route types
+  // For now, using source-based coloring
+  const colorMap: Record<string, string> = {
+    krakow1: '#2563eb', // Blue for buses
+    krakow2: '#16a34a', // Green for trams  
+    krakow3: '#f59e0b', // Orange for SKA (rapid transit)
+    ald: '#dc2626',     // Red for regional buses
+    kml: '#7c3aed'      // Purple for trains
+  };
+  
+  return colorMap[stop.sourceId] || '#6b7280';
+}
+
+function getRouteTypeColor(routeType: number): string {
+  const colorMap: Record<number, string> = {
+    0: '#16a34a', // Tram - Green
+    1: '#2563eb', // Subway - Blue
+    2: '#7c3aed', // Rail - Purple
+    3: '#dc2626', // Bus - Red
+    4: '#0891b2', // Ferry - Cyan
+    11: '#ea580c' // Trolleybus - Orange
+  };
+  return colorMap[routeType] || '#6b7280';
+}
+
+function getRouteTypeName(type: number): string {
+  const names: Record<number, string> = {
+    0: 'Tram', 1: 'Subway', 2: 'Rail', 3: 'Bus', 4: 'Ferry',
+    5: 'Cable Tram', 6: 'Aerial Lift', 7: 'Funicular', 11: 'Trolleybus', 12: 'Monorail'
+  };
+  return names[type] || `Type ${type}`;
 }
 
 export default function GoogleMapsComponent({
@@ -128,18 +170,22 @@ export default function GoogleMapsComponent({
 
     // Add stop markers
     stops.forEach(stop => {
+      const color = getStopColor(stop);
+      
+      // Create simple circle marker
       const marker = new window.google.maps.Marker({
         position: { lat: stop.lat, lng: stop.lng },
         map: mapInstanceRef.current,
         title: stop.name,
         icon: {
           path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 6,
-          fillColor: getStopColor(stop),
-          fillOpacity: 0.8,
-          strokeWeight: 2,
+          scale: stop.type ? 15 : 8, // Bigger for searched stops
+          fillColor: color,
+          fillOpacity: 1,
+          strokeWeight: 3,
           strokeColor: '#ffffff'
-        }
+        },
+        zIndex: stop.type ? 1000 : 100 // Higher priority for searched stops
       });
 
       // Info window for stop details
@@ -147,18 +193,15 @@ export default function GoogleMapsComponent({
         content: `
           <div style="max-width: 250px;">
             <h3 style="margin: 0 0 10px 0; font-size: 16px;">${stop.name}</h3>
+            ${stop.type ? `<p style="margin: 5px 0; font-size: 12px; color: #666; font-weight: bold;"><strong>Type:</strong> ${stop.type === 'origin' ? '🟢 Starting Point' : '🔴 Destination'}</p>` : ''}
             <p style="margin: 5px 0; font-size: 12px; color: #666;">
-              <strong>Stop ID:</strong> ${stop.id.split('-')[1] || stop.id}
+              <strong>Stop ID:</strong> ${stop.id.split ? (stop.id.split('-')[1] || stop.id) : stop.id}
             </p>
             <p style="margin: 5px 0; font-size: 12px; color: #666;">
               <strong>Coordinates:</strong> ${stop.lat.toFixed(4)}, ${stop.lng.toFixed(4)}
             </p>
-            <p style="margin: 5px 0; font-size: 12px; color: #666;">
-              <strong>Routes:</strong> ${stop.routes.length} route(s)
-            </p>
-            <p style="margin: 5px 0; font-size: 12px; color: #666;">
-              <strong>Source:</strong> ${stop.sourceId}
-            </p>
+            ${stop.routes ? `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Routes:</strong> ${stop.routes.length} route(s)</p>` : ''}
+            ${stop.sourceId ? `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Source:</strong> ${stop.sourceId}</p>` : ''}
             ${stop.code ? `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Code:</strong> ${stop.code}</p>` : ''}
           </div>
         `
@@ -172,6 +215,85 @@ export default function GoogleMapsComponent({
       markersRef.current.push(marker);
     });
   }, [stops, showStops, isLoaded, onStopClick]);
+
+  // Separate useEffect for route lines to ensure proper timing
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isLoaded || !window.google) return;
+
+    // Add a small delay to ensure map is fully initialized
+    const drawRoutes = setTimeout(() => {
+      // Clear existing polylines first
+      polylinesRef.current.forEach(polyline => {
+        try {
+          polyline.setMap(null);
+        } catch (e) {
+          console.log('Error clearing polyline:', e);
+        }
+      });
+      polylinesRef.current = [];
+      
+      // Draw route lines between connected stops
+      if (stops.length === 2 && stops[0].routeConnections && stops[0].routeConnections.length > 0) {
+        console.log('🗺️ Drawing route lines. Map instance:', mapInstanceRef.current);
+        console.log('🚌 Route connections to draw:', stops[0].routeConnections.length);
+        const routeConnections = stops[0].routeConnections;
+      
+        routeConnections.forEach((connection: any, index: number) => {
+          const colors = ['#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#7c3aed'];
+          const color = colors[index % colors.length];
+          
+          try {
+            // Create polyline without setting map first
+            const routeLine = new window.google.maps.Polyline({
+              path: [
+                { lat: stops[0].lat, lng: stops[0].lng },
+                { lat: stops[1].lat, lng: stops[1].lng }
+              ],
+              geodesic: true,
+              strokeColor: color,
+              strokeOpacity: 0.8,
+              strokeWeight: 6
+            });
+            
+            // Then set the map separately with additional validation
+            if (mapInstanceRef.current && mapInstanceRef.current.getDiv) {
+              console.log('🗺️ Setting map for polyline, map type:', typeof mapInstanceRef.current);
+              routeLine.setMap(mapInstanceRef.current);
+            } else {
+              console.error('❌ Invalid map instance for polyline');
+              return; // Skip this polyline
+            }
+            
+            // Add route info window
+            const routeInfoWindow = new window.google.maps.InfoWindow({
+              content: `
+                <div style="max-width: 200px;">
+                  <h3 style="margin: 0 0 10px 0; font-size: 16px;">🚌 ${connection.routeShortName || connection.routeId}</h3>
+                  <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                    <strong>Route:</strong> ${connection.routeLongName || 'Direct connection'}
+                  </p>
+                  <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                    <strong>Source:</strong> ${connection.source}
+                  </p>
+                </div>
+              `
+            });
+            
+            routeLine.addListener('click', (event: any) => {
+              routeInfoWindow.setPosition(event.latLng);
+              routeInfoWindow.open(mapInstanceRef.current);
+            });
+            
+            polylinesRef.current.push(routeLine);
+          } catch (error) {
+            console.error('Error creating route line:', error);
+          }
+        });
+      }
+    }, 500); // 500ms delay to ensure map is ready
+
+    return () => clearTimeout(drawRoutes);
+  }, [stops, isLoaded]);
 
   // Update vehicle markers
   useEffect(() => {
@@ -326,42 +448,4 @@ export default function GoogleMapsComponent({
       <div ref={mapRef} className="h-full w-full rounded" />
     </div>
   );
-}
-
-// Helper functions
-function getStopColor(stop: MappedStop): string {
-  // Color code based on route types served at this stop
-  if (stop.routes.length === 0) return '#999999';
-  
-  // You could enhance this to check actual route types
-  // For now, using source-based coloring
-  const colorMap: Record<string, string> = {
-    krakow1: '#2563eb', // Blue for buses
-    krakow2: '#2563eb', // Blue for buses  
-    krakow3: '#16a34a', // Green for trams
-    ald: '#dc2626',     // Red for regional buses
-    kml: '#7c3aed'      // Purple for trains
-  };
-  
-  return colorMap[stop.sourceId] || '#6b7280';
-}
-
-function getRouteTypeColor(routeType: number): string {
-  const colorMap: Record<number, string> = {
-    0: '#16a34a', // Tram - Green
-    1: '#2563eb', // Subway - Blue
-    2: '#7c3aed', // Rail - Purple
-    3: '#dc2626', // Bus - Red
-    4: '#0891b2', // Ferry - Cyan
-    11: '#ea580c' // Trolleybus - Orange
-  };
-  return colorMap[routeType] || '#6b7280';
-}
-
-function getRouteTypeName(type: number): string {
-  const names: Record<number, string> = {
-    0: 'Tram', 1: 'Subway', 2: 'Rail', 3: 'Bus', 4: 'Ferry',
-    5: 'Cable Tram', 6: 'Aerial Lift', 7: 'Funicular', 11: 'Trolleybus', 12: 'Monorail'
-  };
-  return names[type] || `Type ${type}`;
 }
