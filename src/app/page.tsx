@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import TripPlanner, { TripPlanData } from '@/components/TripPlanner';
+import ReportIssueWidget from '@/components/ReportIssueWidget';
+import { Report } from '@/types/Report';
 
 // Styling variables
 const styles = {
@@ -27,6 +29,11 @@ export default function Home() {
     alert(`Searching routes from ${tripData.from} to ${tripData.to} on ${tripData.date} at ${tripData.time}`);
   };
 
+  const handleReportIssue = (report: Report) => {
+    console.log('Report submitted:', report);
+    alert(`Issue reported: ${report.reporterLocation === 'on_vehicle' ? 'On vehicle' : 'At stop'}`);
+  };
+
   return (
     <main className={styles.main}>
       <div className={styles.container}>
@@ -49,6 +56,10 @@ export default function Home() {
           <span className={styles.viewTripIcon}>👀</span>
           <span>View Current Trip</span>
         </Link>
+
+        <div className="mt-6">
+          <ReportIssueWidget onSubmitReport={handleReportIssue} />
+        </div>
       </div>
     </main>
   );
