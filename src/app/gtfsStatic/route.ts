@@ -1,55 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { gtfsCache, GTFS_SOURCES } from '@/lib/gtfsCache';
 
 export async function GET(request: NextRequest) {
-  try {
-    // Fetch the GTFS static data zip file
-    const response = await fetch("https://gtfs.ztp.krakow.pl/GTFS_KRK_A.zip", {
-    });
+  const { searchParams } = new URL(request.url);
+  const file = searchParams.get('file'); // Query specific file: ?file=stops
+  const source = searchParams.get('source') || 'krakow'; // Source: ?source=krakow
+  const action = searchParams.get('action'); // Special actions: ?action=cache-info or ?action=clear-cache
 
-    if (!response.ok) {
-      const error = new Error(`${response.url}: ${response.status} ${response.statusText}`);
-      console.error(error);
+  try {
+    // Handle special actions
+    if (action === 'sources') {
+      return NextResponse.json({
+        sources: gtfsCache.getAllSources(),
+        usage: 'Add ?source=sourceId to specify which source to use'
+      });
+    }
+    
+    if (action === 'cache-info') {
+      return NextResponse.json(gtfsCache.getCacheInfo(source === 'all' ? undefined : source));
+    }
+    
+    if (action === 'clear-cache') {
+      gtfsCache.clearCache(source === 'all' ? undefined : source);
+      return NextResponse.json({ 
+        message: `Cache cleared successfully${source === 'all' ? ' for all sources' : ` for source: ${source}`}` 
+      });
+    }
+
+    // Validate source
+    if (!GTFS_SOURCES[source]) {
       return NextResponse.json(
-        { error: 'Failed to fetch GTFS static data' },
-        { status: response.status }
+        { error: `Unknown source '${source}'. Available sources: ${Object.keys(GTFS_SOURCES).join(', ')}` },
+        { status: 400 }
       );
     }
 
-    const zipBuffer = await response.arrayBuffer();
-    
-    // Return the zip file as base64 for client-side processing
-    const base64Zip = Buffer.from(zipBuffer).toString('base64');
-    
+    // Get cached GTFS data for specific source
+    const gtfsData = await gtfsCache.getGTFSData(source);
+    const cacheInfo = gtfsCache.getCacheInfo(source);
+
+    // If specific file requested, return just that file
+    if (file) {
+      const fileData = (gtfsData as any)[file];
+      if (!fileData) {
+        return NextResponse.json(
+          { error: `File '${file}' not found. Available files: ${Object.keys(gtfsData).join(', ')}` },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        source: source,
+        sourceName: GTFS_SOURCES[source].name,
+        file: file,
+        data: fileData,
+        count: fileData.length,
+        cacheInfo
+      });
+    }
+
+    // Return summary of all files for this source
+    const summary = Object.entries(gtfsData).map(([key, data]) => ({
+      file: key,
+      count: Array.isArray(data) ? data.length : 0
+    }));
+
     return NextResponse.json({
-      zipData: base64Zip,
-      size: zipBuffer.byteLength,
-      instructions: {
-        usage: 'Use a client-side zip library like JSZip to extract and parse the files',
-        example: `
-          // Install: npm install jszip
-          // Then in your component:
-          import JSZip from 'jszip';
-          
-          const response = await fetch('/api/gtfsStatic');
-          const { zipData } = await response.json();
-          const zipBuffer = Uint8Array.from(atob(zipData), c => c.charCodeAt(0));
-          const zip = new JSZip();
-          const contents = await zip.loadAsync(zipBuffer);
-          
-          // Get stops.txt
-          const stopsFile = contents.file('stops.txt');
-          if (stopsFile) {
-            const csvContent = await stopsFile.async('text');
-            const stops = parseCSV(csvContent);
-          }
-        `
+      source: source,
+      sourceName: GTFS_SOURCES[source].name,
+      summary,
+      totalRecords: summary.reduce((sum, file) => sum + file.count, 0),
+      availableFiles: Object.keys(gtfsData),
+      cacheInfo,
+      usage: {
+        sources: 'Add ?action=sources to see available sources',
+        getSpecificFile: 'Add ?file=filename (e.g., ?file=stops)',
+        changeSource: 'Add ?source=sourceId to use different source',
+        cacheInfo: 'Add ?action=cache-info to see cache status',
+        clearCache: 'Add ?action=clear-cache to force refresh (add &source=all to clear all)'
       }
     });
 
   } catch (error) {
     console.error('Error processing GTFS static data:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error: ' + (error as Error).message },
       { status: 500 }
     );
   }
