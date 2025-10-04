@@ -79,9 +79,9 @@ function getRouteTypeSummary(routes: any[]) {
 // Helper function to get source breakdown
 function getSourceBreakdown(mapData: any) {
   const sources = new Set([
-    ...mapData.stops.map((s: any) => s.sourceId),
-    ...mapData.routes.map((r: any) => r.sourceId),
-    ...mapData.vehicles.map((v: any) => v.sourceId)
+    // ...mapData.stops.map((s: any) => s.sourceId),
+    // ...mapData.routes.map((r: any) => r.sourceId),
+    // ...mapData.vehicles.map((v: any) => v.sourceId)
   ]);
   
   return Array.from(sources).map(sourceId => ({

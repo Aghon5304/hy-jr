@@ -48,17 +48,17 @@ export interface MappedVehicle {
 }
 
 export interface MapData {
-  stops: MappedStop[];
-  routes: MappedRoute[];
-  trips: MappedTrip[];
-  vehicles: MappedVehicle[];
-  bounds: {
+  stops?: MappedStop[];
+  routes?: MappedRoute[];
+  trips?: MappedTrip[];
+  vehicles?: MappedVehicle[];
+  bounds?: {
     north: number;
     south: number;
     east: number;
     west: number;
   };
-  stats: {
+  stats?: {
     totalStops: number;
     totalRoutes: number;
     totalVehicles: number;
@@ -261,7 +261,7 @@ class GTFSMapService {
 
   // Utility methods for filtering data
   getStopsByRoute(routeId: string): MappedStop[] {
-    if (!this.cachedMapData) return [];
+    if (!this.cachedMapData?.routes || !this.cachedMapData?.stops) return [];
     
     const route = this.cachedMapData.routes.find(r => r.id === routeId);
     if (!route) return [];
@@ -270,12 +270,12 @@ class GTFSMapService {
   }
 
   getRoutesByType(routeType: number): MappedRoute[] {
-    if (!this.cachedMapData) return [];
+    if (!this.cachedMapData?.routes) return [];
     return this.cachedMapData.routes.filter(route => route.type === routeType);
   }
 
   getStopsInBounds(bounds: { north: number; south: number; east: number; west: number }): MappedStop[] {
-    if (!this.cachedMapData) return [];
+    if (!this.cachedMapData?.stops) return [];
     
     return this.cachedMapData.stops.filter(stop =>
       stop.lat >= bounds.south &&
@@ -286,7 +286,7 @@ class GTFSMapService {
   }
 
   getVehiclesByRoute(routeId: string): MappedVehicle[] {
-    if (!this.cachedMapData) return [];
+    if (!this.cachedMapData?.vehicles) return [];
     return this.cachedMapData.vehicles.filter(vehicle => vehicle.routeId === routeId);
   }
 

@@ -14,7 +14,7 @@ interface GoogleMapsProps {
   stops: MappedStop[];
   routes: MappedRoute[];
   vehicles: MappedVehicle[];
-  bounds: {
+  bounds?: {
     north: number;
     south: number;
     east: number;
@@ -74,12 +74,16 @@ export default function GoogleMapsComponent({
   useEffect(() => {
     if (isLoaded && mapRef.current && !mapInstanceRef.current) {
       try {
+        // Default center to Kraków if no bounds provided
+        const defaultCenter = { lat: 50.0647, lng: 19.9450 };
+        const center = bounds ? {
+          lat: (bounds.north + bounds.south) / 2,
+          lng: (bounds.east + bounds.west) / 2
+        } : defaultCenter;
+
         const map = new window.google.maps.Map(mapRef.current, {
           zoom: 12,
-          center: {
-            lat: (bounds.north + bounds.south) / 2,
-            lng: (bounds.east + bounds.west) / 2
-          },
+          center: center,
           mapTypeId: 'roadmap',
           styles: [
             {
