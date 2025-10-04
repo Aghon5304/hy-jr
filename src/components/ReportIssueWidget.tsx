@@ -8,7 +8,7 @@ interface ReportIssueWidgetProps {
 }
 
 export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [report, setReport] = useState<Partial<Report>>({
     reporterLocation: 'on_vehicle',
     coordinates: { latitude: 0, longitude: 0 }
