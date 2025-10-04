@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@types/google.maps": "^3.58.1",
     "gtfs-realtime-bindings": "^1.1.1",
     "jszip": "^3.10.1",
     "next": "15.5.4",
