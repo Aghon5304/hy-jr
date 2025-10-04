@@ -6,11 +6,8 @@ import TripPlanner, { TripPlanData } from '@/components/TripPlanner';
 import ReportIssueWidget from '@/components/ReportIssueWidget';
 import { Report } from '@/types/Report';
 import ReportDifficultyDrawer from '@/components/ReportDifficultyDrawer';
-<<<<<<< HEAD
 import GoogleMapsComponent from '@/components/GoogleMapsComponent'; // DODANY IMPORT
-=======
 import TripIssuesNotification from '@/components/TripIssuesNotification';
->>>>>>> 6ff3244 (notification)
 
 // Styling variables
 const styles = {
@@ -46,12 +43,8 @@ export default function Home() {
 
   const handleReportDifficulty = (cause: string, location: { lat: number; lng: number }) => {
     console.log('Difficulty reported:', { cause, location });
-<<<<<<< HEAD
-    alert(`Difficulty reported: ${cause} at location ${location.lat}, ${location.lng}`);
-=======
     // Here you would save to database
     setSelectedIssueType(cause);
->>>>>>> 6ff3244 (notification)
     setIsDifficultyDrawerOpen(false);
     setShowTripIssuesNotification(true);
   };
