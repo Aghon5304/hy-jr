@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 import TripPlanner, { TripPlanData } from '@/components/TripPlanner';
 import ReportIssueWidget from '@/components/ReportIssueWidget';
-import MapViewer from '@/components/MapViewer';
 import { Report } from '@/types/Report';
 import ReportDifficultyDrawer from '@/components/ReportDifficultyDrawer';
 
@@ -27,6 +26,7 @@ const styles = {
 };
 
 export default function Home() {
+  const [isDifficultyDrawerOpen, setIsDifficultyDrawerOpen] = useState(false);
 
   const handlePlanTrip = (tripData: TripPlanData) => {
     console.log('Planning trip:', tripData);
@@ -51,24 +51,45 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
-      <div className={styles.container}>
-        <TripPlanner onPlanTrip={handlePlanTrip} />
-        
-        {/* Google Maps Component */}
-        <div className="my-6">
-          <MapViewer />
+      {/* Map Background */}
+      <div className={styles.mapBackground}>
+        <div className="text-center">
+          <div className="text-6xl mb-4">🗺️</div>
+          <div className="text-lg text-green-700 font-medium">Interactive Map</div>
+          <div className="text-sm text-green-600">Real-time transit routes</div>
         </div>
-        
-        <Link 
-          href="/TripInfo"
-          className={styles.viewTripButton}
-        >
-          <span className={styles.viewTripIcon}>👀</span>
-          <span>View Current Trip</span>
-        </Link>
+      </div>
 
-        <div className="mt-6">
-          <ReportIssueWidget onSubmitReport={handleReportIssue} />
+      {/* Floating Content Overlay */}
+      <div className={styles.overlay}>
+        <div className={styles.container}>
+          <div className={styles.floatingCard}>
+            <TripPlanner onPlanTrip={handlePlanTrip} />
+          </div>
+          
+          <div className={styles.floatingCard}>
+            <Link 
+              href="/TripInfo"
+              className={styles.viewTripButton}
+            >
+              <span className={styles.viewTripIcon}>👀</span>
+              <span>View Current Trip</span>
+            </Link>
+          </div>
+
+          <div className={styles.floatingCard}>
+            <button
+              onClick={() => setIsDifficultyDrawerOpen(true)}
+              className={styles.reportDifficultyButton}
+            >
+              <span className="text-lg">⚠️</span>
+              <span>Report Difficulty</span>
+            </button>
+          </div>
+
+          <div className={styles.floatingCard}>
+            <ReportIssueWidget onSubmitReport={handleReportIssue} />
+          </div>
         </div>
       </div>
 
