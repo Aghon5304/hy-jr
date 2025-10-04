@@ -33,30 +33,118 @@ export default function Home() {
   const [selectedIssueType, setSelectedIssueType] = useState<string>('');
   const [isTripInfoOpen, setIsTripInfoOpen] = useState(false);
   const [searchedStops, setSearchedStops] = useState<any[]>([]);
+  const [liveVehicles, setLiveVehicles] = useState<any[]>([]);
+  const [selectedRoutes, setSelectedRoutes] = useState<any[]>([]);
 
-  // Function to find routes that connect two stops
+  // Function to fetch real-time vehicle positions
+  const fetchRealTimeVehicles = async (routeIds: string[]) => {
+    console.log('🚌 FETCHING REAL-TIME VEHICLES FOR ROUTES:', routeIds);
+    
+    try {
+      const sources = ['krakow1', 'krakow2', 'krakow3', 'ald', 'kml'];
+      const allVehicles: any[] = [];
+      
+      for (const source of sources) {
+        try {
+          // Fetch real-time vehicle positions
+          const vehicleResponse = await fetch(`/api/vehiclePositions`);
+          if (!vehicleResponse.ok) {
+            console.log(``);
+            continue;
+          }
+          
+          const vehicleData = await vehicleResponse.json();
+          const vehicles = vehicleData.entity || [];
+          
+          // Filter vehicles that are on our selected routes
+          const relevantVehicles = vehicles.filter((vehicle: any) => {
+            const trip = vehicle.vehicle?.trip;
+            return trip && routeIds.some(routeId => {
+              // Check if vehicle's route matches any of our selected routes
+              return trip.routeId === routeId || 
+                     vehicle.vehicle?.vehicle?.label?.includes(routeId) ||
+                     trip.tripId?.includes(routeId);
+            });
+          });
+          
+          console.log(`✅ ${source}: ${relevantVehicles.length} vehicles on selected routes`);
+          
+          // Transform vehicle data for map display
+          const transformedVehicles = relevantVehicles.map((vehicle: any) => ({
+            id: vehicle.id,
+            vehicleId: vehicle.vehicle?.vehicle?.id || vehicle.id,
+            label: vehicle.vehicle?.vehicle?.label || 'Unknown',
+            position: {
+              lat: vehicle.vehicle?.position?.latitude,
+              lng: vehicle.vehicle?.position?.longitude
+            },
+            bearing: vehicle.vehicle?.position?.bearing || 0,
+            speed: vehicle.vehicle?.position?.speed || 0,
+            tripId: vehicle.vehicle?.trip?.tripId,
+            routeId: vehicle.vehicle?.trip?.routeId,
+            timestamp: vehicle.vehicle?.timestamp,
+            source: source,
+            status: vehicle.vehicle?.currentStatus || 'IN_TRANSIT_TO'
+          })).filter((v: any) => v.position.lat && v.position.lng); // Only include vehicles with valid positions
+          
+          allVehicles.push(...transformedVehicles);
+          
+        } catch (sourceError) {
+          console.error(`💥 Error fetching vehicles from ${source}:`, sourceError);
+        }
+      }
+      
+      console.log(`🎯 TOTAL LIVE VEHICLES FOUND: ${allVehicles.length}`);
+      allVehicles.forEach((vehicle, index) => {
+        console.log(`${index + 1}. Vehicle ${vehicle.label} at ${vehicle.position.lat}, ${vehicle.position.lng} (Route: ${vehicle.routeId})`);
+      });
+      
+      return allVehicles;
+      
+    } catch (error) {
+      console.error('💥 Error fetching real-time vehicles:', error);
+      return [];
+    }
+  };
+
+  // Function to find routes that connect two stops using shape points
   const findRouteBetweenStops = async (stopId1: string, stopId2: string) => {
-    console.log('🔍 ROUTE FINDER INITIATED');
+    console.log('🔍 SHAPE-BASED ROUTE FINDER INITIATED');
     console.log('🎯 Target stops:', stopId1, 'and', stopId2);
     
     try {
-      // Get stop_times data from all sources
       const sources = ['krakow1', 'krakow2', 'krakow3', 'ald', 'kml'];
       const routeConnections: any[] = [];
       
       for (const source of sources) {
         console.log(`📡 Checking source: ${source}`);
         try {
-          // Fetch stop_times data
-          const stopTimesResponse = await fetch(`/api/gtfsStatic?source=${source}&file=stopTimes`);
-          if (!stopTimesResponse.ok) {
-            console.log(`❌ Failed to fetch stopTimes from ${source}`);
+          // Fetch all required data
+          const [stopTimesResponse, tripsResponse, routesResponse, shapesResponse] = await Promise.all([
+            fetch(`/api/gtfsStatic?source=${source}&file=stopTimes`),
+            fetch(`/api/gtfsStatic?source=${source}&file=trips`),
+            fetch(`/api/gtfsStatic?source=${source}&file=routes`),
+            fetch(`/api/gtfsStatic?source=${source}&file=shapes`)
+          ]);
+
+          if (!stopTimesResponse.ok || !tripsResponse.ok || !routesResponse.ok) {
+            console.log(`❌ Failed to fetch required data from ${source}`);
             continue;
           }
-          
-          const stopTimesData = await stopTimesResponse.json();
+
+          const [stopTimesData, tripsData, routesData, shapesData] = await Promise.all([
+            stopTimesResponse.json(),
+            tripsResponse.json(),
+            routesResponse.json(),
+            shapesResponse.ok ? shapesResponse.json() : { data: [] }
+          ]);
+
           const stopTimes = stopTimesData.data || [];
-          console.log(`📊 ${source}: Loaded ${stopTimes.length} stop_times records`);
+          const trips = tripsData.data || [];
+          const routes = routesData.data || [];
+          const shapes = shapesData.data || [];
+
+          console.log(`📊 ${source}: Loaded ${stopTimes.length} stop_times, ${trips.length} trips, ${routes.length} routes, ${shapes.length} shape points`);
           
           // Find trips that visit both stops
           const tripsWithStop1 = stopTimes.filter((st: any) => st.stop_id === stopId1);
@@ -65,67 +153,105 @@ export default function Home() {
           console.log(`🚏 ${source}: Stop1 (${stopId1}) appears in ${tripsWithStop1.length} trips`);
           console.log(`🚏 ${source}: Stop2 (${stopId2}) appears in ${tripsWithStop2.length} trips`);
           
-          // Find common trips
-          const commonTrips = tripsWithStop1.filter((st1: any) => 
-            tripsWithStop2.some((st2: any) => st2.trip_id === st1.trip_id)
-          );
+          // Find common trips with sequence validation
+          const commonTrips = tripsWithStop1.filter((st1: any) => {
+            const matchingStop2 = tripsWithStop2.find((st2: any) => st2.trip_id === st1.trip_id);
+            if (matchingStop2) {
+              // Ensure proper sequence (stop1 should come before stop2 in the trip)
+              const seq1 = parseInt(st1.stop_sequence || '0');
+              const seq2 = parseInt(matchingStop2.stop_sequence || '0');
+              return seq1 < seq2; // Stop1 should come before Stop2
+            }
+            return false;
+          });
           
-          console.log(`🔗 ${source}: Found ${commonTrips.length} common trips`);
+          console.log(`🔗 ${source}: Found ${commonTrips.length} valid sequential trips`);
           
           if (commonTrips.length > 0) {
-            console.log(`🚌 ${source}: Common trip IDs:`, commonTrips.map((t: any) => t.trip_id).slice(0, 5));
-            
-            // Get route information for these trips
-            const tripsResponse = await fetch(`/api/gtfsStatic?source=${source}&file=trips`);
-            if (tripsResponse.ok) {
-              const tripsData = await tripsResponse.json();
-              const trips = tripsData.data || [];
-              console.log(`📋 ${source}: Loaded ${trips.length} trip records`);
-              
-              const routesResponse = await fetch(`/api/gtfsStatic?source=${source}&file=routes`);
-              if (routesResponse.ok) {
-                const routesData = await routesResponse.json();
-                const routes = routesData.data || [];
-                console.log(`🗺️ ${source}: Loaded ${routes.length} route records`);
-                
-                commonTrips.forEach((trip: any) => {
-                  const tripInfo = trips.find((t: any) => t.trip_id === trip.trip_id);
-                  if (tripInfo) {
-                    const routeInfo = routes.find((r: any) => r.route_id === tripInfo.route_id);
-                    if (routeInfo) {
-                      const existingRoute = routeConnections.find(rc => rc.routeId === routeInfo.route_id);
-                      if (!existingRoute) {
-                        console.log(`✅ ${source}: Found new route connection:`, {
-                          routeId: routeInfo.route_id,
-                          shortName: routeInfo.route_short_name,
-                          longName: routeInfo.route_long_name,
-                          tripId: trip.trip_id
-                        });
-                        routeConnections.push({
-                          routeId: routeInfo.route_id,
-                          routeShortName: routeInfo.route_short_name,
-                          routeLongName: routeInfo.route_long_name,
-                          source: source,
-                          tripId: trip.trip_id
-                        });
+            for (const trip of commonTrips.slice(0, 3)) { // Limit to first 3 for performance
+              const tripInfo = trips.find((t: any) => t.trip_id === trip.trip_id);
+              if (tripInfo && tripInfo.shape_id) {
+                const routeInfo = routes.find((r: any) => r.route_id === tripInfo.route_id);
+                if (routeInfo) {
+                  // Get shape points for this trip - handle CSV array format
+                  console.log(`🗺️ Processing shape ${tripInfo.shape_id} for route ${routeInfo.route_short_name}`);
+                  
+                  const shapePoints = shapes
+                    .filter((s: any) => {
+                      // Handle both object format and array format
+                      const shapeId = s.shape_id || s[0];
+                      return shapeId === tripInfo.shape_id;
+                    })
+                    .sort((a: any, b: any) => {
+                      // Sort by sequence number - handle CSV array format
+                      const seqA = parseInt(a.shape_pt_sequence || a[3] || '0');
+                      const seqB = parseInt(b.shape_pt_sequence || b[3] || '0');
+                      return seqA - seqB;
+                    })
+                    .map((s: any) => {
+                      // Parse coordinates from CSV array format: [shape_id, lat, lng, sequence]
+                      let lat, lng, sequence;
+                      
+                      if (Array.isArray(s) || s[0] !== undefined) {
+                        // CSV array format
+                        lat = parseFloat(s[1]);
+                        lng = parseFloat(s[2]);
+                        sequence = parseInt(s[3] || '0');
                       } else {
-                        console.log(`🔄 ${source}: Route already found:`, routeInfo.route_short_name);
+                        // Object format
+                        lat = parseFloat(s.shape_pt_lat);
+                        lng = parseFloat(s.shape_pt_lon);
+                        sequence = parseInt(s.shape_pt_sequence || '0');
                       }
-                    } else {
-                      console.log(`❓ ${source}: Route info not found for route_id:`, tripInfo.route_id);
-                    }
-                  } else {
-                    console.log(`❓ ${source}: Trip info not found for trip_id:`, trip.trip_id);
+                      
+                      return {
+                        lat: lat,
+                        lng: lng,
+                        sequence: sequence,
+                        shapeId: s.shape_id || s[0]
+                      };
+                    })
+                    .filter((point: any) => !isNaN(point.lat) && !isNaN(point.lng) && point.lat !== 0 && point.lng !== 0); // Filter out invalid coordinates
+                  
+                  console.log(`📍 Shape ${tripInfo.shape_id}: Found ${shapePoints.length} valid coordinate points`);
+                  if (shapePoints.length > 0) {
+                    console.log(`🎯 First point: ${shapePoints[0].lat}, ${shapePoints[0].lng}`);
+                    console.log(`🏁 Last point: ${shapePoints[shapePoints.length - 1].lat}, ${shapePoints[shapePoints.length - 1].lng}`);
                   }
-                });
+
+                  const existingRoute = routeConnections.find(rc => rc.routeId === routeInfo.route_id);
+                  if (!existingRoute) {
+                    console.log(`✅ ${source}: Found new route connection with ${shapePoints.length} shape points:`, {
+                      routeId: routeInfo.route_id,
+                      shortName: routeInfo.route_short_name,
+                      longName: routeInfo.route_long_name,
+                      shapeId: tripInfo.shape_id,
+                      tripId: trip.trip_id
+                    });
+
+                    routeConnections.push({
+                      routeId: routeInfo.route_id,
+                      routeShortName: routeInfo.route_short_name,
+                      routeLongName: routeInfo.route_long_name,
+                      source: source,
+                      tripId: trip.trip_id,
+                      shapeId: tripInfo.shape_id,
+                      shapePoints: shapePoints,
+                      stops: [], // Add empty stops array to prevent undefined error
+                      headsign: tripInfo.trip_headsign || routeInfo.route_long_name
+                    });
+                  } else {
+                    console.log(`🔄 ${source}: Route already found:`, routeInfo.route_short_name);
+                  }
+                } else {
+                  console.log(`❓ ${source}: Route info not found for route_id:`, tripInfo.route_id);
+                }
               } else {
-                console.log(`❌ ${source}: Failed to fetch routes`);
+                console.log(`❓ ${source}: Trip missing shape_id:`, trip.trip_id);
               }
-            } else {
-              console.log(`❌ ${source}: Failed to fetch trips`);
             }
           } else {
-            console.log(`⚫ ${source}: No common trips found`);
+            console.log(`⚫ ${source}: No valid sequential trips found`);
           }
         } catch (sourceError) {
           console.error(`💥 Error checking source ${source}:`, sourceError);
@@ -133,16 +259,16 @@ export default function Home() {
         console.log(`---`);
       }
       
-      console.log('🎯 FINAL RESULTS:');
+      console.log('🎯 FINAL SHAPE-BASED RESULTS:');
       console.log(`📊 Total route connections found: ${routeConnections.length}`);
       routeConnections.forEach((connection, index) => {
-        console.log(`${index + 1}. Route ${connection.routeShortName} (${connection.routeId}) from ${connection.source}`);
+        console.log(`${index + 1}. Route ${connection.routeShortName} (${connection.routeId}) - ${connection.shapePoints?.length || 0} shape points`);
       });
       
       return routeConnections;
       
     } catch (error) {
-      console.error('💥 Critical error in route finder:', error);
+      console.error('💥 Critical error in shape-based route finder:', error);
       return [];
     }
   };
@@ -157,6 +283,20 @@ export default function Home() {
 
     // Find routes connecting both stops
     const routeConnections = await findRouteBetweenStops(tripData.fromStop.id, tripData.toStop.id);
+
+    // Set route data for visualization
+    setSelectedRoutes(routeConnections);
+
+    // Fetch real-time vehicles for these routes
+    let vehicles: any[] = [];
+    if (routeConnections.length > 0) {
+      const routeIds = routeConnections.map(r => r.routeId);
+      console.log('🚌 Fetching live vehicles for routes:', routeIds);
+      vehicles = await fetchRealTimeVehicles(routeIds);
+      setLiveVehicles(vehicles);
+    } else {
+      setLiveVehicles([]);
+    }
 
     // Deploy visual markers on map
     const stopsToShow = [
@@ -182,12 +322,13 @@ export default function Home() {
     
     setSearchedStops(stopsToShow);
     
-    console.log('Visual markers deployed:', stopsToShow);
-    console.log('Route connections found:', routeConnections);
+    console.log('🗺️ Visual markers deployed:', stopsToShow);
+    console.log('🚌 Route connections found:', routeConnections);
+    console.log('🚍 Live vehicles found:', vehicles.length);
     
     if (routeConnections.length > 0) {
       const routeNames = routeConnections.map(r => r.routeShortName || r.routeId).join(', ');
-      alert(`🎯 DIRECT ROUTE FOUND!\n\n🟢 Origin: ${tripData.fromStop.name}\n🔴 Destination: ${tripData.toStop.name}\n🚌 Routes: ${routeNames}\n\nCheck the map for route visualization!`);
+      alert(`🎯 LIVE ROUTE FOUND!\n\n🟢 Origin: ${tripData.fromStop.name}\n🔴 Destination: ${tripData.toStop.name}\n🚌 Routes: ${routeNames}\n🚍 Live Vehicles: ${vehicles.length}\n\nCheck the map for real-time visualization!`);
     } else {
       alert(`🚨 NO DIRECT ROUTE\n\n🟢 Origin: ${tripData.fromStop.name}\n🔴 Destination: ${tripData.toStop.name}\n\nThese stops are not connected by a direct bus route. Transfer required!`);
     }
@@ -198,8 +339,8 @@ export default function Home() {
     alert(`Issue reported: ${report.reporterLocation === 'on_vehicle' ? 'On vehicle' : 'At stop'}`);
   };
 
-  const handleReportDifficulty = (cause: string, location: { lat: number; lng: number }) => {
-    console.log('Difficulty reported:', { cause, location });
+  const handleReportDifficulty = (cause: string, vehicleNumber: string, location: { lat: number; lng: number }) => {
+    console.log('Difficulty reported:', { cause, vehicleNumber, location });
     // Here you would save to database
     setSelectedIssueType(cause);
     setIsDifficultyDrawerOpen(false);
@@ -212,12 +353,12 @@ export default function Home() {
       <div className={styles.mapBackground}>
         <GoogleMapsComponent
           stops={searchedStops} // Show searched route stops
-          routes={[]}
-          vehicles={[]}
+          routes={selectedRoutes} // Show shape-based routes with geometry
+          vehicles={liveVehicles} // Show real-time vehicle positions
           apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE"}
           showStops={true}
-          showRoutes={false}
-          showVehicles={true}
+          showRoutes={true} // Enable route visualization
+          showVehicles={true} // Enable live vehicle tracking
         />
       </div>
 
