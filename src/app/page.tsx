@@ -1,18 +1,53 @@
+'use client';
+
 import Link from 'next/link';
+import TripPlanner, { TripPlanData } from '@/components/TripPlanner';
+
+// Styling variables
+const styles = {
+  main: "min-h-screen bg-gray-50 p-4",
+  container: "max-w-sm mx-auto",
+  title: "text-2xl font-bold text-gray-900 mb-6 text-center",
+  divider: {
+    container: "flex items-center my-6",
+    line: "flex-1 border-t border-gray-300",
+    text: "px-4 text-sm text-gray-500"
+  },
+  viewTripButton: "w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-4 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2 active:bg-gray-300",
+  viewTripIcon: "text-lg"
+};
 
 export default function Home() {
+  const handlePlanTrip = (tripData: TripPlanData) => {
+    console.log('Planning trip:', tripData);
+    // Here you would typically:
+    // 1. Validate the data
+    // 2. Make API calls to search for routes
+    // 3. Navigate to results page or show loading state
+    alert(`Searching routes from ${tripData.from} to ${tripData.to} on ${tripData.date} at ${tripData.time}`);
+  };
+
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-sm mx-auto text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">
-          🚂 Travel App
+    <main className={styles.main}>
+      <div className={styles.container}>
+        <h1 className={styles.title}>
+          Journey Radar
         </h1>
+        
+        <TripPlanner onPlanTrip={handlePlanTrip} />
+        
+        <div className={styles.divider.container}>
+          <div className={styles.divider.line}></div>
+          <span className={styles.divider.text}>or</span>
+          <div className={styles.divider.line}></div>
+        </div>
         
         <Link 
           href="/TripInfo"
-          className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-8 rounded-xl transition-colors active:bg-blue-800"
+          className={styles.viewTripButton}
         >
-          View Trip
+          <span className={styles.viewTripIcon}>👀</span>
+          <span>View Current Trip</span>
         </Link>
       </div>
     </main>
