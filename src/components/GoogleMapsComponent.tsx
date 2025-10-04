@@ -380,13 +380,61 @@ export default function GoogleMapsComponent({
           try {
             let routePath: any[] = [];
             
-            // Use shape points if available
+            // Use shape points if available, but only the segment between stops
             if (connection.shapePoints && connection.shapePoints.length > 1) {
-              console.log(`🗺️ Using ${connection.shapePoints.length} shape points for route ${connection.routeShortName}`);
-              routePath = connection.shapePoints.map((point: any) => ({
-                lat: point.lat,
-                lng: point.lng
-              }));
+              console.log(`🗺️ Finding route segment between stops for route ${connection.routeShortName}`);
+              
+              // Find the closest shape points to our departure and arrival stops
+              const departureStop = stops[0];
+              const arrivalStop = stops[1];
+              
+              let startIndex = 0;
+              let endIndex = connection.shapePoints.length - 1;
+              let minStartDistance = Infinity;
+              let minEndDistance = Infinity;
+              
+              // Find the shape point closest to departure stop
+              connection.shapePoints.forEach((point: any, index: number) => {
+                const distance = Math.sqrt(
+                  Math.pow(point.lat - departureStop.lat, 2) + 
+                  Math.pow(point.lng - departureStop.lng, 2)
+                );
+                if (distance < minStartDistance) {
+                  minStartDistance = distance;
+                  startIndex = index;
+                }
+              });
+              
+              // Find the shape point closest to arrival stop
+              connection.shapePoints.forEach((point: any, index: number) => {
+                const distance = Math.sqrt(
+                  Math.pow(point.lat - arrivalStop.lat, 2) + 
+                  Math.pow(point.lng - arrivalStop.lng, 2)
+                );
+                if (distance < minEndDistance) {
+                  minEndDistance = distance;
+                  endIndex = index;
+                }
+              });
+              
+              // Ensure we have the right direction (start should come before end)
+              if (startIndex > endIndex) {
+                [startIndex, endIndex] = [endIndex, startIndex];
+              }
+              
+              // Extract only the segment between the stops
+              const segmentPoints = connection.shapePoints.slice(startIndex, endIndex + 1);
+              
+              console.log(`🗺️ Using segment from index ${startIndex} to ${endIndex} (${segmentPoints.length} points) for route ${connection.routeShortName}`);
+              
+              routePath = [
+                { lat: departureStop.lat, lng: departureStop.lng }, // Start with actual departure stop
+                ...segmentPoints.map((point: any) => ({
+                  lat: point.lat,
+                  lng: point.lng
+                })),
+                { lat: arrivalStop.lat, lng: arrivalStop.lng } // End with actual arrival stop
+              ];
             } else {
               // Fallback to simple line between stops
               console.log(`🗺️ Using simple line for route ${connection.routeShortName} (no shape points)`);
