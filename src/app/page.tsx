@@ -427,9 +427,7 @@ export default function Home() {
       <div className={styles.overlay}>
         <div className={styles.container}>
           {/* Trip Planner na górze */}
-          <div className={styles.floatingCard}>
-            <TripPlanner onPlanTrip={handlePlanTrip} isSearching={isSearching} />
-            </div>
+
           {/* Top components grouped together */}
           <div className="space-y-2">
             {/* User Panel */}
