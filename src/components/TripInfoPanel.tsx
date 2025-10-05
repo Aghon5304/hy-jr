@@ -2,13 +2,16 @@
 
 import { useState, useCallback } from 'react';
 import { Trip, sampleTrip, TripHelper } from '@/types/Trip';
+import { SavedJourney, deleteJourney } from '@/lib/journeyManager';
 
 interface TripInfoPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  savedJourney?: SavedJourney | null;
+  onJourneyDeleted?: () => void;
 }
 
-export default function TripInfoPanel({ isOpen, onClose }: TripInfoPanelProps) {
+export default function TripInfoPanel({ isOpen, onClose, savedJourney, onJourneyDeleted }: TripInfoPanelProps) {
   // Use the sample trip data from the Trip model
   const trip: Trip = sampleTrip;
   const firstStep = TripHelper.getFirstStep(trip);
@@ -77,6 +80,21 @@ export default function TripInfoPanel({ isOpen, onClose }: TripInfoPanelProps) {
     if (isDragging) handleDragEnd();
   };
 
+  // Handle journey deletion
+  const handleDeleteJourney = () => {
+    if (savedJourney) {
+      const confirmDelete = window.confirm(
+        `Are you sure you want to delete your saved journey from ${savedJourney.fromStop.name} to ${savedJourney.toStop.name}?`
+      );
+      
+      if (confirmDelete) {
+        deleteJourney(savedJourney.id);
+        onJourneyDeleted?.();
+        onClose();
+      }
+    }
+  };
+
   return (
     <>
       {/* Invisible backdrop for dismissing panel */}
@@ -108,7 +126,7 @@ export default function TripInfoPanel({ isOpen, onClose }: TripInfoPanelProps) {
         {/* Header with Close Button */}
         <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
           <h1 className="text-xl font-bold text-gray-900">
-            🚂 Your Journey
+            {savedJourney ? '💾 Saved Journey' : '🚂 Your Journey'}
           </h1>
           <button
             onClick={onClose}
@@ -117,8 +135,57 @@ export default function TripInfoPanel({ isOpen, onClose }: TripInfoPanelProps) {
             <span className="text-xl">❌</span>
           </button>
         </div>
-        
-        <div className="p-4">
+         <div className="p-4">
+          {/* Saved Journey Info */}
+          {savedJourney && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <span className="text-lg">💾</span>
+                <div>
+                  <h2 className="text-lg font-semibold text-green-800">{savedJourney.name}</h2>
+                  <p className="text-sm text-green-600">
+                    Saved on {new Date(savedJourney.savedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{savedJourney.fromStop.name}</div>
+                    <div className="text-xs text-gray-500">🟢 Starting Point</div>
+                  </div>
+                  <div className="flex-1 mx-4">
+                    <div className="h-0.5 bg-gray-300"></div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-gray-900">{savedJourney.toStop.name}</div>
+                    <div className="text-xs text-gray-500">🔴 Destination</div>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-gray-600">
+                  {savedJourney.routeConnections.length} route option{savedJourney.routeConnections.length > 1 ? 's' : ''} available
+                </div>
+                
+                {savedJourney.routeConnections.map((route, index) => (
+                  <div key={index} className="text-xs text-gray-600 bg-white rounded px-2 py-1">
+                    🚌 {route.routeShortName} - {route.routeLongName}
+                  </div>
+                ))}
+                
+                {/* Delete Journey Button */}
+                <button
+                  onClick={handleDeleteJourney}
+                  className="w-full mt-3 bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center space-x-2 border border-red-200"
+                >
+                  <span>🗑️</span>
+                  <span>Cancel Journey</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Trip Overview Card */}
           <div className="bg-gray-50 rounded-2xl shadow-sm p-4 mb-4">
             {/* Route Overview */}

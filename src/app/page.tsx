@@ -9,6 +9,13 @@ import GoogleMapsComponent from '@/components/GoogleMapsComponent'; // DODANY IM
 import TripIssuesNotification from '@/components/TripIssuesNotification';
 import TripInfoPanel from '@/components/TripInfoPanel';
 import UserPanel from '@/components/UserPanel';
+import { 
+  saveJourney, 
+  getSavedJourneys, 
+  getActiveJourney, 
+  checkJourneyCollisions,
+  type SavedJourney 
+} from '@/lib/journeyManager';
 
 // Styling variables
 const styles = {
@@ -32,13 +39,16 @@ export default function Home() {
   const [isDifficultyDrawerOpen, setIsDifficultyDrawerOpen] = useState(false);
   const [showTripIssuesNotification, setShowTripIssuesNotification] = useState(false);
   const [selectedIssueType, setSelectedIssueType] = useState<string>('');
-  const [isTripInfoOpen, setIsTripInfoOpen] = useState(false);
   const [searchedStops, setSearchedStops] = useState<any[]>([]);
   const [liveVehicles, setLiveVehicles] = useState<any[]>([]);
   const [selectedRoutes, setSelectedRoutes] = useState<any[]>([]);
   const [delays, setDelays] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [routeCollisions, setRouteCollisions] = useState<any[]>([]);
+  const [savedJourney, setSavedJourney] = useState<SavedJourney | null>(null);
+  const [showSaveButton, setShowSaveButton] = useState(false);
+  const [currentTripData, setCurrentTripData] = useState<TripPlanData | null>(null);
+  const [showTripInfoPanel, setShowTripInfoPanel] = useState(false);
 
   // Function to fetch delays from delays.json
   const fetchDelays = async () => {
@@ -53,6 +63,19 @@ export default function Home() {
         console.log(`📊 Loaded ${delayReports.length} delay reports:`, delayReports);
         console.log('🗺️ Setting delays state:', delayReports);
         setDelays(delayReports);
+        
+        // Check saved journey for collisions with new delays
+        if (savedJourney && delayReports.length > 0) {
+          const journeyCollisions = checkJourneyCollisions(savedJourney, delayReports);
+          if (journeyCollisions.length > 0) {
+            console.log('🚨 Saved journey has collisions with new delays:', journeyCollisions);
+            setRouteCollisions(journeyCollisions);
+            setShowTripIssuesNotification(true);
+            if (journeyCollisions[0]?.delay?.cause) {
+              setSelectedIssueType(journeyCollisions[0].delay.cause);
+            }
+          }
+        }
         
         // Log each delay location
         delayReports.forEach((delay: any, index: number) => {
@@ -71,7 +94,36 @@ export default function Home() {
   // Load delays on page initialization
   useEffect(() => {
     fetchDelays();
+    loadSavedJourney();
   }, []);
+
+  // Load saved journey on mount
+  const loadSavedJourney = () => {
+    const activeJourney = getActiveJourney();
+    if (activeJourney) {
+      setSavedJourney(activeJourney);
+      // Restore the journey visualization
+      setSelectedRoutes(activeJourney.routeConnections);
+      
+      const stopsToShow = [
+        {
+          ...activeJourney.fromStop,
+          type: 'origin',
+          icon: '🟢',
+          routeConnections: activeJourney.routeConnections
+        },
+        {
+          ...activeJourney.toStop,
+          type: 'destination',
+          icon: '🔴',
+          routeConnections: activeJourney.routeConnections
+        }
+      ];
+      setSearchedStops(stopsToShow);
+      
+      console.log('🔄 Loaded saved journey:', activeJourney);
+    }
+  };
 
   // Function to fetch real-time vehicle positions
   const fetchRealTimeVehicles = async (routeIds: string[]) => {
@@ -224,11 +276,9 @@ export default function Home() {
       
       setSearchedStops(stopsToShow);
       
-      // Check for route collisions with delays
-      if (routeConnections.length > 0 && delays.length > 0) {
-        // This collision detection will be handled by GoogleMapsComponent
-        // We'll pass a callback to receive collision results
-      }
+      // Store current trip data for saving
+      setCurrentTripData(tripData);
+      setShowSaveButton(routeConnections.length > 0);
       
       console.log('🗺️ Visual markers deployed:', stopsToShow);
       console.log('🚌 Route connections found:', routeConnections);
@@ -265,6 +315,34 @@ export default function Home() {
         setSelectedIssueType(collisions[0].delay.cause);
       }
     }
+  };
+
+  const handleSaveJourney = () => {
+    if (currentTripData && selectedRoutes.length > 0) {
+      const journey = saveJourney(
+        currentTripData.fromStop,
+        currentTripData.toStop,
+        selectedRoutes
+      );
+      setSavedJourney(journey);
+      setShowSaveButton(false);
+      
+      // Auto-hide the saved journey notification after 3 seconds
+      setTimeout(() => {
+        setSavedJourney(prev => prev ? { ...prev, showNotification: false } : null);
+      }, 3000);
+      
+      console.log('💾 Journey saved successfully');
+    }
+  };
+
+  const handleJourneyDeleted = () => {
+    // Clear all journey-related state
+    setSavedJourney(null);
+    setSelectedRoutes([]);
+    setSearchedStops([]);
+    setLiveVehicles([]);
+    console.log('🗑️ Journey deleted and cleared from map');
   };
 
   return (
@@ -311,7 +389,7 @@ export default function Home() {
           <div className={styles.floatingCard}>
             <div className="flex gap-2">
               <button
-                onClick={() => setIsTripInfoOpen(true)}
+                onClick={() => setShowTripInfoPanel(true)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center space-x-1 active:bg-gray-300 text-sm"
               >
                 <span>👀</span>
@@ -353,8 +431,9 @@ export default function Home() {
 
       {/* Trip Info Slide-out Panel */}
       <TripInfoPanel 
-        isOpen={isTripInfoOpen}
-        onClose={() => setIsTripInfoOpen(false)}
+        isOpen={showTripInfoPanel}
+        onClose={() => setShowTripInfoPanel(false)}
+        savedJourney={savedJourney}
       />
 
     </main>
