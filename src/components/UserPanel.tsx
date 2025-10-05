@@ -88,7 +88,7 @@ export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPane
             {/* Name and Level */}
             <div className="flex-1">
               <div className="text-sm font-medium text-gray-900">{name}</div>
-              <div className="text-xs text-gray-500">Jesteś na poziomie {currentLevelInfo.level}, <span style={{ color: '#DEDE1C'}}>{currentLevelInfo.title}</span></div>
+              <div className="text-xs text-gray-500">Jesteś na poziomie {currentLevelInfo.level}, <span style={{ color: '#DEDE1C', textShadow: '0 0 5px rgba(222, 222, 28, 0.8)' }}>{currentLevelInfo.title}</span></div>
             </div>
 
             {/* Chevron indicator */}
@@ -113,7 +113,7 @@ export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPane
         </div>
 
         {/* Expandable Content - Seamless Extension */}
-        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`}>
           {/* Subtle separator line when expanded */}
           {isExpanded && <div className="border-t border-gray-100 mx-3"></div>}
           <div className="p-4">
@@ -149,18 +149,6 @@ export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPane
                 </div>
               </div>
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <div className="text-center p-2 bg-gray-50 rounded-lg">
-                  <div className="text-sm font-semibold text-gray-900">12</div>
-                  <div className="text-xs text-gray-500">Przejazdów w tym tygodniu</div>
-                </div>
-                <div className="text-center p-2 bg-gray-50 rounded-lg">
-                  <div className="text-sm font-semibold text-gray-900">32</div>
-                  <div className="text-xs text-gray-500">potwierdzenia</div>
-                </div>
-              </div>
-
               {/* Local Ranking Banner */}
               <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-3 border border-blue-100">
                 <div className="flex items-center justify-between">
@@ -175,6 +163,14 @@ export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPane
                     <div className="text-lg font-bold text-blue-600">#12</div>
                     <div className="text-xs text-gray-500">z 2,847</div>
                   </div>
+                </div>
+              </div>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="flex items-center justify-center p-2 bg-gray-50 rounded-lg">
+                  <button className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">Zaproś znajomego</button>
+                </div>
+                <div className="flex items-center justify-center p-2 bg-gray-50 rounded-lg">
+                  <button className="w-full h-full flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors min-h-[48px]">Info</button>
                 </div>
               </div>
             </div>
