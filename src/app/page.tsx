@@ -8,13 +8,14 @@ import ReportDifficultyDrawer from '@/components/ReportDifficultyDrawer';
 import GoogleMapsComponent from '@/components/GoogleMapsComponent'; // DODANY IMPORT
 import TripIssuesNotification from '@/components/TripIssuesNotification';
 import TripInfoPanel from '@/components/TripInfoPanel';
+import UserPanel from '@/components/UserPanel';
 
 // Styling variables
 const styles = {
   main: "relative h-screen overflow-hidden",
   mapBackground: "absolute inset-0", // USUNIĘTE bg-green-100 flex items-center justify-center
   overlay: "relative z-10 p-4 h-screen pointer-events-none",
-  container: "max-w-sm mx-auto h-full flex flex-col justify-between py-8",
+  container: "max-w-sm mx-auto h-full flex flex-col justify-start pt-1 pb-8",
   floatingCard: "bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4 pointer-events-auto",
   title: "text-2xl font-bold text-gray-900 mb-6 text-center",
   divider: {
@@ -428,7 +429,23 @@ export default function Home() {
           {/* Trip Planner na górze */}
           <div className={styles.floatingCard}>
             <TripPlanner onPlanTrip={handlePlanTrip} isSearching={isSearching} />
+            </div>
+          {/* Top components grouped together */}
+          <div className="space-y-2">
+            {/* User Panel */}
+            <UserPanel 
+              name="John Doe" 
+              points={1250} 
+            />
+            
+            {/* Trip Planner */}
+            <div className={styles.floatingCard}>
+              <TripPlanner onPlanTrip={handlePlanTrip} />
+            </div>
           </div>
+          
+          {/* Spacer to push bottom buttons down */}
+          <div className="flex-1"></div>
           
           {/* Bottom buttons group - Horizontal & Slim */}
           <div className={styles.floatingCard}>
@@ -479,6 +496,7 @@ export default function Home() {
         isOpen={isTripInfoOpen}
         onClose={() => setIsTripInfoOpen(false)}
       />
+
     </main>
   );
 }
