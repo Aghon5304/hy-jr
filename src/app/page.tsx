@@ -236,6 +236,7 @@ export default function Home() {
 
     try {
       // Find routes connecting both stops
+      console.log('🔍 Finding routes between stops:', tripData.fromStop.id, 'and', tripData.toStop.id);
       const routeConnections = await findRouteBetweenStops(tripData.fromStop.id, tripData.toStop.id);
 
       // Set route data for visualization
@@ -281,8 +282,10 @@ export default function Home() {
       setShowSaveButton(routeConnections.length > 0);
       
       console.log('🗺️ Visual markers deployed:', stopsToShow);
-      console.log('🚌 Route connections found:', routeConnections);
+      console.log('🚌 Route connections found:', routeConnections.length);
       console.log('🚍 Live vehicles found:', vehicles.length);
+      console.log('💾 Save button should show:', routeConnections.length > 0);
+      console.log('💾 Current showSaveButton state:', routeConnections.length > 0);
       
     } catch (error) {
       console.error('Error planning trip:', error);
@@ -378,7 +381,41 @@ export default function Home() {
             
             {/* Trip Planner */}
             <div className={styles.floatingCard}>
-              <TripPlanner onPlanTrip={handlePlanTrip} />
+              <TripPlanner onPlanTrip={handlePlanTrip} isSearching={isSearching} />
+              
+              {/* Save Journey Button */}
+              {showSaveButton && (
+                <div className="mt-4">
+                  <button
+                    onClick={handleSaveJourney}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors duration-200 flex items-center justify-center space-x-2"
+                  >
+                    <span>💾</span>
+                    <span>Save Journey</span>
+                  </button>
+                </div>
+              )}
+              
+              {/* Saved Journey Status */}
+              {savedJourney && savedJourney.showNotification !== false && (
+                <div className="mt-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 transition-all duration-300">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-green-600">✅</span>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-green-800">Journey Saved</div>
+                        <div className="text-xs text-green-600">{savedJourney.name}</div>
+                      </div>
+                      <button 
+                        onClick={() => setShowTripInfoPanel(true)}
+                        className="text-green-600 hover:text-green-800 text-sm font-medium"
+                      >
+                        View Trip
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
@@ -434,6 +471,7 @@ export default function Home() {
         isOpen={showTripInfoPanel}
         onClose={() => setShowTripInfoPanel(false)}
         savedJourney={savedJourney}
+        onJourneyDeleted={handleJourneyDeleted}
       />
 
     </main>
