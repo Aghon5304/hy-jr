@@ -1,11 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+
+// Constant coordinates - always use this location
+const CONSTANT_LOCATION = {
+  lat: 50.054162997202276,
+  lng: 19.935379028320312
+};
 
 interface ReportDifficultyDrawerProps {
   isOpen: boolean;
+  isMinimized?: boolean;
   onClose: () => void;
   onSubmit: (cause: string, vehicleNumber: string, location: { lat: number; lng: number }) => void;
+  onSelectLocationOnMap?: () => void;
+  onUseCurrentLocation?: () => void;
+  selectedMapLocation?: { lat: number; lng: number } | null;
 }
 
 const difficultyOptions = [
@@ -19,97 +29,89 @@ const difficultyOptions = [
   { value: 'ticket-control', label: 'Kontrola biletów', icon: '🎫' }
 ];
 
-export default function ReportDifficultyDrawer({ 
+const ReportDifficultyDrawer = forwardRef<
+  { toggleVisibility: () => void },
+  ReportDifficultyDrawerProps
+>(({ 
   isOpen, 
+  isMinimized = false,
   onClose, 
-  onSubmit 
-}: ReportDifficultyDrawerProps) {
+  onSubmit,
+  onSelectLocationOnMap,
+  onUseCurrentLocation,
+  selectedMapLocation
+}, ref) => {
   const [selectedCause, setSelectedCause] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  // Always use constant location
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(CONSTANT_LOCATION);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  
+  // Internal state for controlling visibility
+  const [isVisible, setIsVisible] = useState(false);
+  
+  // Debug: Log when isVisible changes
+  useEffect(() => {
+    console.log('🎨 Drawer isVisible state changed to:', isVisible);
+  }, [isVisible]);
+  
+  // Expose visibility control functions to parent via ref
+  useImperativeHandle(ref, () => ({
+    toggleVisibility: () => {
+      console.log('🎯 Drawer: toggleVisibility called, current state:', isVisible);
+      setIsVisible(prev => !prev);
+    },
+    setMinimized: (minimized: boolean) => {
+      console.log('🎯 Drawer: setMinimized called with:', minimized);
+      // When minimized=true, hide the drawer (isVisible=false)
+      // When minimized=false, show the drawer (isVisible=true)
+      const newVisibility = !minimized;
+      console.log('🎯 Drawer: Setting isVisible to:', newVisibility);
+      setIsVisible(newVisibility);
+      
+      if (newVisibility) {
+        console.log('✅ Drawer: NOW VISIBLE - Drawer restored to full view');
+      } else {
+        console.log('🔽 Drawer: NOW HIDDEN - Drawer minimized for map selection');
+      }
+    }
+  }));
 
   useEffect(() => {
-    if (isOpen && !location) {
-      getCurrentLocation();
+    console.log('🔄 Drawer useEffect triggered - isOpen:', isOpen);
+    // When drawer is opened, set isVisible to true
+    if (isOpen) {
+      console.log('✅ Setting isVisible to TRUE because isOpen is true');
+      setIsVisible(true);
+      // Always set to constant location
+      setLocation(CONSTANT_LOCATION);
+    } else {
+      console.log('❌ Setting isVisible to FALSE because isOpen is false');
+      setIsVisible(false);
     }
-  }, [isOpen, location]);
+  }, [isOpen]);
 
-  const getCurrentLocation = () => {
-    setIsGettingLocation(true);
-    setLocationError(null);
-    
-    // Check if we're in a browser environment
-    if (typeof window === 'undefined') {
-      setLocationError('Lokalizacja niedostępna po stronie serwera.');
-      setLocation({
-        lat: 40.7128,
-        lng: -74.0060
-      });
+  // Sync with selected map location (but still fall back to constant location)
+  useEffect(() => {
+    if (selectedMapLocation) {
+      setLocation(selectedMapLocation);
+      setLocationError(null);
       setIsGettingLocation(false);
-      return;
+    } else {
+      // Always ensure constant location is set
+      setLocation(CONSTANT_LOCATION);
     }
-    
-    if (!navigator.geolocation) {
-      setLocationError('Geolokalizacja nie jest obsługiwana przez tę przeglądarkę.');
-      setLocation({
-        lat: 40.7128,
-        lng: -74.0060
-      });
-      setIsGettingLocation(false);
-      return;
-    }
-
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 60000
-    };
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
-        setLocationError(null);
-        setIsGettingLocation(false);
-      },
-      (error) => {
-        console.error('Error getting location:', error);
-        let errorMessage = 'Nie można pobrać lokalizacji';
-        
-        switch (error.code) {
-          case 1: // PERMISSION_DENIED
-            errorMessage = 'Dostęp do lokalizacji został odrzucony. Proszę włączyć uprawnienia lokalizacji i spróbować ponownie.';
-            break;
-          case 2: // POSITION_UNAVAILABLE
-            errorMessage = 'Informacje o lokalizacji są niedostępne.';
-            break;
-          case 3: // TIMEOUT
-            errorMessage = 'Żądanie lokalizacji przekroczyło czas oczekiwania. Proszę spróbować ponownie.';
-            break;
-          default:
-            errorMessage = 'Wystąpił nieznany błąd podczas pobierania lokalizacji.';
-            break;
-        }
-        
-        setLocationError(errorMessage);
-        // Fallback to a default location (e.g., city center)
-        setLocation({
-          lat: 40.7128, // Default to NYC coordinates
-          lng: -74.0060
-        });
-        setIsGettingLocation(false);
-      },
-      options
-    );
-  };
+  }, [selectedMapLocation]);
 
   const handleSubmit = async (cause: string) => {
-    if (location) {
+    // Always use constant location
+    const finalLocation = CONSTANT_LOCATION;
+    
+    if (finalLocation) {
       try {
+        console.log('🚨 Submitting delay report with location:', finalLocation);
+        
         // Save to delays.json via API
         const response = await fetch('/api/delays', {
           method: 'POST',
@@ -119,39 +121,53 @@ export default function ReportDifficultyDrawer({
           body: JSON.stringify({
             cause,
             vehicleNumber,
-            location
+            location: finalLocation
           }),
         });
 
         if (response.ok) {
-          console.log('Delay report saved successfully');
+          console.log('✅ Delay report saved successfully to delays.json');
         } else {
-          console.error('Failed to save delay report');
+          console.error('❌ Failed to save delay report');
         }
       } catch (error) {
-        console.error('Error submitting delay report:', error);
+        console.error('💥 Error submitting delay report:', error);
       }
 
-      // Call original onSubmit callback
-      onSubmit(cause, vehicleNumber, location);
+      // Call original onSubmit callback with the final location
+      onSubmit(cause, vehicleNumber, finalLocation);
       
       // Reset form
       setSelectedCause('');
       setVehicleNumber('');
-      setLocation(null);
+      setLocation(CONSTANT_LOCATION);
+    } else {
+      console.warn('⚠️ No location available for report submission');
     }
   };
 
   const handleClose = () => {
     setSelectedCause('');
     setVehicleNumber('');
-    setLocation(null);
+    setLocation(CONSTANT_LOCATION);
     setLocationError(null);
     onClose();
   };
 
-  if (!isOpen) return null;
+  console.log('🎬 Drawer render - isOpen:', isOpen, 'isVisible:', isVisible);
+  
+  if (!isOpen) {
+    console.log('❌ Drawer NOT rendering: isOpen is false');
+    return null;
+  }
 
+  // Hide drawer when isVisible is false (during location selection)
+  if (!isVisible) {
+    console.log('❌ Drawer NOT rendering: isVisible is false (hidden for map selection)');
+    return null;
+  }
+
+  console.log('✅ Drawer IS rendering: Both isOpen and isVisible are true');
   return (
     <div className="fixed inset-0 z-50 flex items-end">
       {/* Backdrop */}
@@ -185,37 +201,23 @@ export default function ReportDifficultyDrawer({
           <div className="space-y-6">
             {/* Location Section - moved to top */}
             <div className="bg-gray-50 p-4 rounded-lg">
-              <label className="text-sm font-medium text-gray-700 block mb-2">
+              <label className="text-sm font-medium text-gray-700 block mb-3">
                 Lokalizacja
               </label>
-              {isGettingLocation ? (
-                <p className="text-sm text-gray-500">Pobieranie lokalizacji...</p>
-              ) : location ? (
-                <div>
-                  <p className="text-sm text-gray-600">
-                    📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-                  </p>
-                  {locationError && (
-                    <p className="text-xs text-orange-600 mt-1">
-                      {locationError} (Używam domyślnej lokalizacji)
+              
+              {/* Show constant location */}
+              <div className="mb-3 p-3 bg-blue-100 border border-blue-300 rounded-md">
+                <div className="flex items-center">
+                  <span className="text-blue-600 mr-2">📍</span>
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">Twoja lokalizacja</p>
+                    <p className="text-xs text-blue-600">
+                      Współrzędne: {CONSTANT_LOCATION.lat.toFixed(6)}, {CONSTANT_LOCATION.lng.toFixed(6)}
                     </p>
-                  )}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-sm text-red-500">Nie można pobrać lokalizacji</p>
-              )}
-              {locationError && !location && (
-                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
-                  <p className="text-xs text-orange-700">{locationError}</p>
-                </div>
-              )}
-              <button
-                onClick={getCurrentLocation}
-                disabled={isGettingLocation}
-                className="mt-3 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-              >
-                {isGettingLocation ? 'Pobieranie lokalizacji...' : 'Odśwież lokalizację'}
-              </button>
+              </div>
+
             </div>
 
             {/* Vehicle Number Input */}
@@ -241,8 +243,7 @@ export default function ReportDifficultyDrawer({
                   <button
                     key={option.value}
                     onClick={() => handleSubmit(option.value)}
-                    disabled={!location}
-                    className="flex flex-col items-center p-4 border-2 border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex flex-col items-center p-4 border-2 border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-colors"
                   >
                     <span className="text-2xl mb-2">{option.icon}</span>
                     <span className="text-xs text-center font-medium text-gray-700">
@@ -267,4 +268,8 @@ export default function ReportDifficultyDrawer({
       </div>
     </div>
   );
-}
+});
+
+ReportDifficultyDrawer.displayName = 'ReportDifficultyDrawer';
+
+export default ReportDifficultyDrawer;

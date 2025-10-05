@@ -26,6 +26,8 @@ interface GoogleMapsProps {
   onStopClick?: (stop: any) => void;
   onRouteClick?: (route: MappedRoute) => void;
   onRouteCollisions?: (collisions: any[]) => void;
+  onMapClick?: (location: { lat: number; lng: number }) => void; // New prop for map click handling
+  selectedLocation?: { lat: number; lng: number } | null; // Show selected location marker
   shouldFocusOnOrigin?: boolean; // New prop to trigger zoom to origin
   showStops?: boolean;
   showRoutes?: boolean;
@@ -99,6 +101,8 @@ export default function GoogleMapsComponent({
   onStopClick,
   onRouteClick,
   onRouteCollisions,
+  onMapClick,
+  selectedLocation,
   shouldFocusOnOrigin = false,
   showStops = true,
   showRoutes = false,
@@ -111,6 +115,7 @@ export default function GoogleMapsComponent({
   const polylinesRef = useRef<any[]>([]);
   const vehicleMarkersRef = useRef<any[]>([]);
   const delayMarkersRef = useRef<any[]>([]);
+  const selectedLocationMarkerRef = useRef<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string>('');
 
@@ -287,6 +292,16 @@ export default function GoogleMapsComponent({
           });
           map.fitBounds(boundsObj);
           console.log('🗺️ Map bounds set to include', allPoints.length, 'points');
+        }
+
+        // Add map click listener for location selection
+        if (onMapClick) {
+          map.addListener('click', (event: any) => {
+            const lat = event.latLng.lat();
+            const lng = event.latLng.lng();
+            console.log('🗺️ Map clicked at:', lat, lng);
+            onMapClick({ lat, lng });
+          });
         }
 
       } catch (err) {
@@ -952,6 +967,77 @@ export default function GoogleMapsComponent({
     });
   }, [delays, showDelays, isLoaded]);
 
+  // Update selected location marker
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isLoaded) return;
+
+    // Clear existing selected location marker
+    if (selectedLocationMarkerRef.current) {
+      selectedLocationMarkerRef.current.setMap(null);
+      selectedLocationMarkerRef.current = null;
+    }
+
+    // Add new selected location marker if location is provided
+    if (selectedLocation) {
+      console.log('📍 Adding selected location marker at:', selectedLocation);
+      
+      // Create a pulsing marker to indicate selected location
+      const createSelectedLocationSVG = () => {
+        return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+          <svg width="50" height="50" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="selectedGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#dc2626" stop-opacity="1"/>
+                <stop offset="70%" stop-color="#dc2626" stop-opacity="0.7"/>
+                <stop offset="100%" stop-color="#dc2626" stop-opacity="0.3"/>
+              </radialGradient>
+              <filter id="selectedGlow">
+                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+            
+            <!-- Outer pulsing ring -->
+            <circle cx="25" cy="25" r="20" 
+                    fill="none" 
+                    stroke="#dc2626" 
+                    stroke-width="2" 
+                    stroke-opacity="0.5" 
+                    filter="url(#selectedGlow)"/>
+                    
+            <!-- Inner filled circle -->
+            <circle cx="25" cy="25" r="12" 
+                    fill="url(#selectedGrad)" 
+                    stroke="#ffffff" 
+                    stroke-width="2"/>
+                    
+            <!-- Center dot -->
+            <circle cx="25" cy="25" r="4" 
+                    fill="#ffffff" 
+                    opacity="0.9"/>
+          </svg>
+        `)}`;
+      };
+
+      const marker = new window.google.maps.Marker({
+        position: { lat: selectedLocation.lat, lng: selectedLocation.lng },
+        map: mapInstanceRef.current,
+        title: 'Wybrana lokalizacja',
+        icon: {
+          url: createSelectedLocationSVG(),
+          scaledSize: new window.google.maps.Size(50, 50),
+          anchor: new window.google.maps.Point(25, 25)
+        },
+        zIndex: 3000 // Show above everything else
+      });
+
+      selectedLocationMarkerRef.current = marker;
+    }
+  }, [selectedLocation, isLoaded]);
+
   // Update route polylines
   useEffect(() => {
     if (!mapInstanceRef.current || !isLoaded) return;
@@ -1063,6 +1149,10 @@ export default function GoogleMapsComponent({
         }
         marker.setMap(null);
       });
+      // Clean up selected location marker
+      if (selectedLocationMarkerRef.current) {
+        selectedLocationMarkerRef.current.setMap(null);
+      }
     };
   }, []);
 

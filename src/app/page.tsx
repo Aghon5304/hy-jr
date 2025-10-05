@@ -52,7 +52,12 @@ export default function Home() {
   const [currentTripData, setCurrentTripData] = useState<TripPlanData | null>(null);
   const [showTripInfoPanel, setShowTripInfoPanel] = useState(false);
   const [shouldFocusOnOrigin, setShouldFocusOnOrigin] = useState(false);
+  const [isMapLocationSelectionMode, setIsMapLocationSelectionMode] = useState(false);
+  const [selectedMapLocation, setSelectedMapLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [drawerKey, setDrawerKey] = useState(0); // Key to force remount drawer
+
   const lastNotificationTimeRef = useRef<number>(0);
+  const drawerRef = useRef<any>(null);
 
   // Function to fetch delays from delays.json (optimized for real-time polling)
   const fetchDelays = async (isPolling = false) => {
@@ -391,6 +396,88 @@ export default function Home() {
     await fetchDelays();
   };
 
+  // Function to toggle drawer visibility internally
+  const toggleDrawerVisibility = () => {
+    console.log('🔄 Toggling drawer visibility via ref');
+    if (drawerRef.current && drawerRef.current.toggleVisibility) {
+      drawerRef.current.toggleVisibility();
+    }
+  };
+
+  // Handle entering map location selection mode
+  const handleSelectLocationOnMap = () => {
+    console.log('🗺️ Entering map location selection mode');
+    setIsMapLocationSelectionMode(true);
+    setIsDifficultyDrawerOpen(false); // Close drawer for map selection
+    setSelectedMapLocation(null); // Reset any previous selection
+  };
+
+  // Handle map click during location selection
+  const handleMapLocationClick = (location: { lat: number; lng: number }) => {
+    if (isMapLocationSelectionMode) {
+      console.log('📍 Location selected on map:', location);
+      setSelectedMapLocation(location);
+      setIsMapLocationSelectionMode(false); // Exit selection mode
+      
+      // Force complete remount: close drawer, increment key, then reopen
+      console.log('🔄 Step 1: Closing drawer');
+      setIsDifficultyDrawerOpen(false);
+      
+      // Use setTimeout to ensure state updates are processed
+      setTimeout(() => {
+        console.log('🔄 Step 2: Incrementing drawer key for remount');
+        setDrawerKey(prev => prev + 1);
+        
+        setTimeout(() => {
+          console.log('🔄 Step 3: Reopening drawer with new location');
+          setIsDifficultyDrawerOpen(true);
+        }, 50);
+      }, 50);
+    }
+  };
+
+  // Handle using current geolocation
+  const handleUseCurrentLocation = () => {
+    console.log('📍 Using current location');
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          console.log('✅ Got current location:', location);
+          setSelectedMapLocation(location);
+        },
+        (error) => {
+          console.error('❌ Error getting current location:', error);
+          // Fallback to Kraków center coordinates instead of showing alert
+          const fallbackLocation = {
+            lat: 50.0647,
+            lng: 19.9450
+          };
+          console.log('🏢 Using fallback location (Kraków center):', fallbackLocation);
+          setSelectedMapLocation(fallbackLocation);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 300000 // 5 minutes cache
+        }
+      );
+    } else {
+      console.error('❌ Geolocation not supported');
+      // Fallback to Kraków center coordinates instead of showing alert
+      const fallbackLocation = {
+        lat: 50.0647,
+        lng: 19.9450
+      };
+      console.log('🏢 Using fallback location (Kraków center):', fallbackLocation);
+      setSelectedMapLocation(fallbackLocation);
+    }
+  };
+
   const handleRouteCollisions = (collisions: any[]) => {
     console.log('Route collisions detected:', collisions);
     if (collisions.length > 0) {
@@ -471,11 +558,13 @@ export default function Home() {
           delays={delays} // Show delay reports from delays.json
           apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE"}
           shouldFocusOnOrigin={shouldFocusOnOrigin} // Trigger zoom to start point
+          selectedLocation={selectedMapLocation} // Show selected location marker
           showStops={true}
           showRoutes={true} // Enable route visualization
           showVehicles={true} // Enable live vehicle tracking
           showDelays={delays.length > 0} // Enable delay report visualization only if delays exist
           onRouteCollisions={handleRouteCollisions} // Handle collision detection
+          onMapClick={handleMapLocationClick} // Handle map clicks for location selection
         />
       </div>
 
@@ -559,9 +648,17 @@ export default function Home() {
       </div>
 
       <ReportDifficultyDrawer 
+        key={drawerKey}
+        ref={drawerRef}
         isOpen={isDifficultyDrawerOpen}
-        onClose={() => setIsDifficultyDrawerOpen(false)}
+        onClose={() => {
+          setIsDifficultyDrawerOpen(false);
+          setIsMapLocationSelectionMode(false);
+        }}
         onSubmit={handleReportDifficulty}
+        onSelectLocationOnMap={handleSelectLocationOnMap}
+        onUseCurrentLocation={handleUseCurrentLocation}
+        selectedMapLocation={selectedMapLocation}
       />
 
       {showTripIssuesNotification && (
