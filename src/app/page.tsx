@@ -144,168 +144,30 @@ export default function Home() {
     }
   };
 
-  // Function to find routes that connect two stops using shape points
+  // Function to find routes using the new API endpoint
   const findRouteBetweenStops = async (stopId1: string, stopId2: string) => {
-    console.log('🔍 SHAPE-BASED ROUTE FINDER INITIATED');
-    console.log('🎯 Target stops:', stopId1, 'and', stopId2);
-    
     try {
-      const sources = ['krakow1', 'krakow2', 'krakow3', 'ald', 'kml'];
-      const routeConnections: any[] = [];
+      console.log('� Using API to find routes between stops:', stopId1, 'and', stopId2);
       
-      for (const source of sources) {
-        console.log(`📡 Checking source: ${source}`);
-        try {
-          // Fetch all required data
-          const [stopTimesResponse, tripsResponse, routesResponse, shapesResponse] = await Promise.all([
-            fetch(`/api/gtfsStatic?source=${source}&file=stopTimes`),
-            fetch(`/api/gtfsStatic?source=${source}&file=trips`),
-            fetch(`/api/gtfsStatic?source=${source}&file=routes`),
-            fetch(`/api/gtfsStatic?source=${source}&file=shapes`)
-          ]);
-
-          if (!stopTimesResponse.ok || !tripsResponse.ok || !routesResponse.ok) {
-            console.log(`❌ Failed to fetch required data from ${source}`);
-            continue;
-          }
-
-          const [stopTimesData, tripsData, routesData, shapesData] = await Promise.all([
-            stopTimesResponse.json(),
-            tripsResponse.json(),
-            routesResponse.json(),
-            shapesResponse.ok ? shapesResponse.json() : { data: [] }
-          ]);
-
-          const stopTimes = stopTimesData.data || [];
-          const trips = tripsData.data || [];
-          const routes = routesData.data || [];
-          const shapes = shapesData.data || [];
-
-          console.log(`📊 ${source}: Loaded ${stopTimes.length} stop_times, ${trips.length} trips, ${routes.length} routes, ${shapes.length} shape points`);
-          
-          // Find trips that visit both stops
-          const tripsWithStop1 = stopTimes.filter((st: any) => st.stop_id === stopId1);
-          const tripsWithStop2 = stopTimes.filter((st: any) => st.stop_id === stopId2);
-          
-          console.log(`🚏 ${source}: Stop1 (${stopId1}) appears in ${tripsWithStop1.length} trips`);
-          console.log(`🚏 ${source}: Stop2 (${stopId2}) appears in ${tripsWithStop2.length} trips`);
-          
-          // Find common trips with sequence validation
-          const commonTrips = tripsWithStop1.filter((st1: any) => {
-            const matchingStop2 = tripsWithStop2.find((st2: any) => st2.trip_id === st1.trip_id);
-            if (matchingStop2) {
-              // Ensure proper sequence (stop1 should come before stop2 in the trip)
-              const seq1 = parseInt(st1.stop_sequence || '0');
-              const seq2 = parseInt(matchingStop2.stop_sequence || '0');
-              return seq1 < seq2; // Stop1 should come before Stop2
-            }
-            return false;
-          });
-          
-          console.log(`🔗 ${source}: Found ${commonTrips.length} valid sequential trips`);
-          
-          if (commonTrips.length > 0) {
-            for (const trip of commonTrips.slice(0, 3)) { // Limit to first 3 for performance
-              const tripInfo = trips.find((t: any) => t.trip_id === trip.trip_id);
-              if (tripInfo && tripInfo.shape_id) {
-                const routeInfo = routes.find((r: any) => r.route_id === tripInfo.route_id);
-                if (routeInfo) {
-                  // Get shape points for this trip - handle CSV array format
-                  console.log(`🗺️ Processing shape ${tripInfo.shape_id} for route ${routeInfo.route_short_name}`);
-                  
-                  const shapePoints = shapes
-                    .filter((s: any) => {
-                      // Handle both object format and array format
-                      const shapeId = s.shape_id || s[0];
-                      return shapeId === tripInfo.shape_id;
-                    })
-                    .sort((a: any, b: any) => {
-                      // Sort by sequence number - handle CSV array format
-                      const seqA = parseInt(a.shape_pt_sequence || a[3] || '0');
-                      const seqB = parseInt(b.shape_pt_sequence || b[3] || '0');
-                      return seqA - seqB;
-                    })
-                    .map((s: any) => {
-                      // Parse coordinates from CSV array format: [shape_id, lat, lng, sequence]
-                      let lat, lng, sequence;
-                      
-                      if (Array.isArray(s) || s[0] !== undefined) {
-                        // CSV array format
-                        lat = parseFloat(s[1]);
-                        lng = parseFloat(s[2]);
-                        sequence = parseInt(s[3] || '0');
-                      } else {
-                        // Object format
-                        lat = parseFloat(s.shape_pt_lat);
-                        lng = parseFloat(s.shape_pt_lon);
-                        sequence = parseInt(s.shape_pt_sequence || '0');
-                      }
-                      
-                      return {
-                        lat: lat,
-                        lng: lng,
-                        sequence: sequence,
-                        shapeId: s.shape_id || s[0]
-                      };
-                    })
-                    .filter((point: any) => !isNaN(point.lat) && !isNaN(point.lng) && point.lat !== 0 && point.lng !== 0); // Filter out invalid coordinates
-                  
-                  console.log(`📍 Shape ${tripInfo.shape_id}: Found ${shapePoints.length} valid coordinate points`);
-                  if (shapePoints.length > 0) {
-                    console.log(`🎯 First point: ${shapePoints[0].lat}, ${shapePoints[0].lng}`);
-                    console.log(`🏁 Last point: ${shapePoints[shapePoints.length - 1].lat}, ${shapePoints[shapePoints.length - 1].lng}`);
-                  }
-
-                  const existingRoute = routeConnections.find(rc => rc.routeId === routeInfo.route_id);
-                  if (!existingRoute) {
-                    console.log(`✅ ${source}: Found new route connection with ${shapePoints.length} shape points:`, {
-                      routeId: routeInfo.route_id,
-                      shortName: routeInfo.route_short_name,
-                      longName: routeInfo.route_long_name,
-                      shapeId: tripInfo.shape_id,
-                      tripId: trip.trip_id
-                    });
-
-                    routeConnections.push({
-                      routeId: routeInfo.route_id,
-                      routeShortName: routeInfo.route_short_name,
-                      routeLongName: routeInfo.route_long_name,
-                      source: source,
-                      tripId: trip.trip_id,
-                      shapeId: tripInfo.shape_id,
-                      shapePoints: shapePoints,
-                      stops: [], // Add empty stops array to prevent undefined error
-                      headsign: tripInfo.trip_headsign || routeInfo.route_long_name
-                    });
-                  } else {
-                    console.log(`🔄 ${source}: Route already found:`, routeInfo.route_short_name);
-                  }
-                } else {
-                  console.log(`❓ ${source}: Route info not found for route_id:`, tripInfo.route_id);
-                }
-              } else {
-                console.log(`❓ ${source}: Trip missing shape_id:`, trip.trip_id);
-              }
-            }
-          } else {
-            console.log(`⚫ ${source}: No valid sequential trips found`);
-          }
-        } catch (sourceError) {
-          console.error(`💥 Error checking source ${source}:`, sourceError);
-        }
-        console.log(`---`);
+      const response = await fetch(`/api/findRoute?from=${encodeURIComponent(stopId1)}&to=${encodeURIComponent(stopId2)}`);
+      
+      if (!response.ok) {
+        console.error('❌ API request failed:', response.status, response.statusText);
+        return [];
       }
       
-      console.log('🎯 FINAL SHAPE-BASED RESULTS:');
-      console.log(`📊 Total route connections found: ${routeConnections.length}`);
-      routeConnections.forEach((connection, index) => {
-        console.log(`${index + 1}. Route ${connection.routeShortName} (${connection.routeId}) - ${connection.shapePoints?.length || 0} shape points`);
-      });
+      const data = await response.json();
       
-      return routeConnections;
+      if (data.success) {
+        console.log('✅ API returned route connections:', data.count);
+        return data.data || [];
+      } else {
+        console.error('❌ API returned error:', data.error);
+        return [];
+      }
       
     } catch (error) {
-      console.error('💥 Critical error in shape-based route finder:', error);
+      console.error('💥 Error calling findRoute API:', error);
       return [];
     }
   };
@@ -330,7 +192,7 @@ export default function Home() {
       // Fetch real-time vehicles for these routes
       let vehicles: any[] = [];
       if (routeConnections.length > 0) {
-        const routeIds = routeConnections.map(r => r.routeId);
+        const routeIds = routeConnections.map((r: any) => r.routeId);
         console.log('🚌 Fetching live vehicles for routes:', routeIds);
         vehicles = await fetchRealTimeVehicles(routeIds);
         setLiveVehicles(vehicles);
@@ -453,7 +315,7 @@ export default function Home() {
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center space-x-1 active:bg-gray-300 text-sm"
               >
                 <span>👀</span>
-                <span>View Trip</span>
+                <span>Zobacz podróż</span>
               </button>
 
               <button
@@ -461,7 +323,7 @@ export default function Home() {
                 className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center space-x-1 active:bg-red-700 text-sm"
               >
                 <span>⚠️</span>
-                <span>Report Issue</span>
+                <span>Zgłoś problem</span>
               </button>
             </div>
           </div>

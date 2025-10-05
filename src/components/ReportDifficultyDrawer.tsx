@@ -42,7 +42,7 @@ export default function ReportDifficultyDrawer({
     
     // Check if we're in a browser environment
     if (typeof window === 'undefined') {
-      setLocationError('Location not available on server side.');
+      setLocationError('Lokalizacja niedostępna po stronie serwera.');
       setLocation({
         lat: 40.7128,
         lng: -74.0060
@@ -52,7 +52,7 @@ export default function ReportDifficultyDrawer({
     }
     
     if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by this browser.');
+      setLocationError('Geolokalizacja nie jest obsługiwana przez tę przeglądarkę.');
       setLocation({
         lat: 40.7128,
         lng: -74.0060
@@ -78,20 +78,20 @@ export default function ReportDifficultyDrawer({
       },
       (error) => {
         console.error('Error getting location:', error);
-        let errorMessage = 'Unable to get location';
+        let errorMessage = 'Nie można pobrać lokalizacji';
         
         switch (error.code) {
           case 1: // PERMISSION_DENIED
-            errorMessage = 'Location access denied. Please enable location permissions and try again.';
+            errorMessage = 'Dostęp do lokalizacji został odrzucony. Proszę włączyć uprawnienia lokalizacji i spróbować ponownie.';
             break;
           case 2: // POSITION_UNAVAILABLE
-            errorMessage = 'Location information is unavailable.';
+            errorMessage = 'Informacje o lokalizacji są niedostępne.';
             break;
           case 3: // TIMEOUT
-            errorMessage = 'Location request timed out. Please try again.';
+            errorMessage = 'Żądanie lokalizacji przekroczyło czas oczekiwania. Proszę spróbować ponownie.';
             break;
           default:
-            errorMessage = 'An unknown error occurred while retrieving location.';
+            errorMessage = 'Wystąpił nieznany błąd podczas pobierania lokalizacji.';
             break;
         }
         
@@ -166,9 +166,9 @@ export default function ReportDifficultyDrawer({
         <div className="sticky top-0 bg-white border-b px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Report Difficulty</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Zgłoś Problem</h2>
               <p className="text-sm text-gray-600">
-                Help us improve transit by reporting issues you encounter
+                Pomóż nam poprawić transport publiczny, zgłaszając napotykane problemy
               </p>
             </div>
             <button
@@ -199,7 +199,7 @@ export default function ReportDifficultyDrawer({
 
             <div>
               <label className="text-base font-medium mb-3 block text-gray-900">
-                What type of difficulty are you experiencing?
+                Jaki rodzaj problemu napotykasz?
               </label>
               <div className="grid grid-cols-2 gap-3">
                 {difficultyOptions.map((option) => (
@@ -220,10 +220,10 @@ export default function ReportDifficultyDrawer({
 
             <div className="bg-gray-50 p-4 rounded-lg">
               <label className="text-sm font-medium text-gray-700 block mb-2">
-                Location
+                Lokalizacja
               </label>
               {isGettingLocation ? (
-                <p className="text-sm text-gray-500">Getting your location...</p>
+                <p className="text-sm text-gray-500">Pobieranie lokalizacji...</p>
               ) : location ? (
                 <div>
                   <p className="text-sm text-gray-600">
@@ -231,12 +231,12 @@ export default function ReportDifficultyDrawer({
                   </p>
                   {locationError && (
                     <p className="text-xs text-orange-600 mt-1">
-                      {locationError} (Using default location)
+                      {locationError} (Używam domyślnej lokalizacji)
                     </p>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-red-500">Unable to get location</p>
+                <p className="text-sm text-red-500">Nie można pobrać lokalizacji</p>
               )}
               {locationError && !location && (
                 <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
@@ -248,7 +248,7 @@ export default function ReportDifficultyDrawer({
                 disabled={isGettingLocation}
                 className="mt-3 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
               >
-                {isGettingLocation ? 'Getting location...' : 'Refresh Location'}
+                {isGettingLocation ? 'Pobieranie lokalizacji...' : 'Odśwież lokalizację'}
               </button>
             </div>
           </div>
@@ -260,7 +260,7 @@ export default function ReportDifficultyDrawer({
             onClick={handleClose}
             className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors"
           >
-            Cancel
+            Anuluj
           </button>
         </div>
       </div>
