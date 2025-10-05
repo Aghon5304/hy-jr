@@ -56,7 +56,17 @@ export default function Home() {
   const [selectedMapLocation, setSelectedMapLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [drawerKey, setDrawerKey] = useState(0); // Key to force remount drawer
 
+  const [userPoints, setUserPoints] = useState(1500); // Initialize with current points value
   const lastNotificationTimeRef = useRef<number>(0);
+
+  // Function to increment user points
+  const incrementPoints = (amount: number = 10) => {
+    setUserPoints(prevPoints => {
+      const newPoints = prevPoints + amount;
+      console.log(`🎯 Points increased by ${amount}! New total: ${newPoints}`);
+      return newPoints;
+    });
+  };
   const drawerRef = useRef<any>(null);
 
   // Function to fetch delays from delays.json (optimized for real-time polling)
@@ -392,6 +402,9 @@ export default function Home() {
     setIsDifficultyDrawerOpen(false);
     setShowTripIssuesNotification(true);
     
+    // Increment user points for reporting an issue
+    incrementPoints(20);
+    
     // Refresh delays to show the new report on the map
     await fetchDelays();
   };
@@ -578,7 +591,7 @@ export default function Home() {
             {/* User Panel */}
             <UserPanel 
               name="Robert Makłowicz" 
-              points={1500} 
+              points={userPoints} 
             />
             
             {/* Trip Planner */}
@@ -669,6 +682,11 @@ export default function Home() {
           }
           selectedIssueType={selectedIssueType}
           collisions={routeCollisions}
+          onConfirm={() => {
+            // Increment points when user confirms a delay
+            incrementPoints(20);
+            console.log('🎯 Points awarded for confirming delay!');
+          }}
           onClose={() => {
             setShowTripIssuesNotification(false);
             

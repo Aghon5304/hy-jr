@@ -148,5 +148,45 @@
       "lng": 19.935379028320312
     },
     "timestamp": "2025-10-05T09:18:53.696Z"
+  },
+  {
+    "id": "1759655906335",
+    "cause": "delays",
+    "vehicleNumber": "",
+    "location": {
+      "lat": 52.1757,
+      "lng": 20.993
+    },
+    "timestamp": "2025-10-05T09:18:26.335Z"
+  },
+  {
+    "id": "1759655952867",
+    "cause": "delays",
+    "vehicleNumber": "",
+    "location": {
+      "lat": 52.1757,
+      "lng": 20.993
+    },
+    "timestamp": "2025-10-05T09:19:12.867Z"
+  },
+  {
+    "id": "1759656020886",
+    "cause": "route-difficulties",
+    "vehicleNumber": "",
+    "location": {
+      "lat": 52.1757,
+      "lng": 20.993
+    },
+    "timestamp": "2025-10-05T09:20:20.886Z"
+  },
+  {
+    "id": "1759656180866",
+    "cause": "route-difficulties",
+    "vehicleNumber": "",
+    "location": {
+      "lat": 52.1757,
+      "lng": 20.993
+    },
+    "timestamp": "2025-10-05T09:23:00.866Z"
   }
 ]

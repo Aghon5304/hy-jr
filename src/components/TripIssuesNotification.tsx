@@ -8,13 +8,15 @@ interface TripIssuesNotificationProps {
   selectedIssueType?: string;
   collisions?: any[];
   onClose?: () => void;
+  onConfirm?: () => void;
 }
 
 const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({ 
   tripId = "Line 23 - Downtown Route", 
   selectedIssueType = 'delay',
   collisions = [],
-  onClose 
+  onClose,
+  onConfirm 
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -286,7 +288,8 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('Delay confirmed by user - closing popup');
+                    console.log('Delay confirmed by user - awarding points and closing popup');
+                    onConfirm?.(); // Call onConfirm callback to increment points
                     handleClose();
                   }}
                   className="bg-green-500 hover:bg-green-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"

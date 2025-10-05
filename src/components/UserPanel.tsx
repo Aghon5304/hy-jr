@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface UserPanelProps {
   name?: string;
@@ -9,10 +9,31 @@ interface UserPanelProps {
 
 export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [pointsIncrement, setPointsIncrement] = useState(0);
+  const previousPoints = useRef(points);
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
   };
+
+  // Detect points changes and trigger animation
+  useEffect(() => {
+    if (points > previousPoints.current) {
+      const increment = points - previousPoints.current;
+      setPointsIncrement(increment);
+      setIsAnimating(true);
+      
+      // Reset animation after duration
+      const timer = setTimeout(() => {
+        setIsAnimating(false);
+        setPointsIncrement(0);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+    previousPoints.current = points;
+  }, [points]);
 
   // Dictionary mapping point thresholds to level info
   const userLevels = {
@@ -57,7 +78,11 @@ export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPane
   return (
     <div className="relative">
       {/* Unified Panel Container - Extends seamlessly */}
-      <div className={`bg-white/90 backdrop-blur-sm shadow-lg pointer-events-auto transition-all duration-300 ease-in-out ${isExpanded ? 'rounded-2xl shadow-xl' : 'rounded-2xl hover:bg-white/95 hover:shadow-xl'}`}>
+      <div className={`
+        bg-white/90 backdrop-blur-sm shadow-lg pointer-events-auto transition-all duration-300 ease-in-out
+        ${isExpanded ? 'rounded-2xl shadow-xl' : 'rounded-2xl hover:bg-white/95 hover:shadow-xl'}
+        ${isAnimating ? 'ring-2 ring-green-400/50 shadow-green-200/30' : ''}
+      `}>
         {/* Header - Always Visible */}
         <div 
           className="p-3 cursor-pointer transition-all duration-200"
@@ -87,7 +112,39 @@ export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPane
             
             {/* Name and Level */}
             <div className="flex-1">
-              <div className="text-sm font-medium text-gray-900">{name}</div>
+              <div className="flex items-center space-x-2">
+                <div className="text-sm font-medium text-gray-900">{name}</div>
+                <div className="relative">
+                  <div className={`
+                    px-2 py-1 rounded-full text-xs font-medium transition-all duration-500
+                    ${isAnimating 
+                      ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white shadow-lg scale-110' 
+                      : 'bg-blue-100 text-blue-800'
+                    }
+                  `}>
+                    {points} pkt
+                  </div>
+                  
+                  {/* Floating increment animation */}
+                  {isAnimating && (
+                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 pointer-events-none">
+                      <div className="animate-bounce bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                        +{pointsIncrement}
+                      </div>
+                      <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-30"></div>
+                    </div>
+                  )}
+                  
+                  {/* Sparkle effects */}
+                  {isAnimating && (
+                    <>
+                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                      <div className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse delay-100"></div>
+                      <div className="absolute top-0 left-1/2 w-1 h-1 bg-blue-400 rounded-full animate-pulse delay-200"></div>
+                    </>
+                  )}
+                </div>
+              </div>
               <div className="text-xs text-gray-500">Jesteś na poziomie {currentLevelInfo.level}, <span style={{ color: '#DEDE1C', textShadow: '0 0 5px rgba(222, 222, 28, 0.8)' }}>{currentLevelInfo.title}</span></div>
             </div>
 
@@ -125,7 +182,10 @@ export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPane
                 <div className="relative">
                   <div className="w-full bg-gray-200 rounded-full h-6">
                     <div 
-                      className="bg-gradient-to-r from-blue-500 to-green-500 h-6 rounded-full transition-all duration-500" 
+                      className={`
+                        bg-gradient-to-r from-blue-500 to-green-500 h-6 rounded-full transition-all duration-500
+                        ${isAnimating ? 'shadow-lg shadow-blue-400/50 animate-pulse' : ''}
+                      `}
                       style={{width: `${Math.min(currentLevelInfo.progressPercentage, 100)}%`}}
                     ></div>
                   </div>
@@ -139,11 +199,16 @@ export default function UserPanel({ name = "Użytkownik", points = 0 }: UserPane
                       )}
                     </span>
                   </div>
-                  <div className="text-center mt-1 text-xs text-gray-600">
-                    {currentLevelInfo.pointsToNextLevel === 0 ? 
-                      'Najwyższy poziom!' : 
-                      `Brakuje Ci ${currentLevelInfo.pointsNeededForCurrentLevel-currentLevelInfo.pointsToNextLevel} punktów do następnego poziomu!`
-                    }
+                  <div className={`text-center mt-1 text-xs transition-all duration-300 ${
+                    isAnimating ? 'text-green-600 font-semibold' : 'text-gray-600'
+                  }`}>
+                    {isAnimating ? (
+                      `🎉 Świetnie! +${pointsIncrement} punktów!`
+                    ) : (
+                      currentLevelInfo.pointsToNextLevel === 0 ? 
+                        'Najwyższy poziom!' : 
+                        `Brakuje Ci ${currentLevelInfo.pointsNeededForCurrentLevel-currentLevelInfo.pointsToNextLevel} punktów do następnego poziomu!`
+                    )}
                   </div>
                   <button className="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">Wymień punkty</button>
                 </div>
