@@ -67,7 +67,7 @@ export const GTFS_SOURCES: { [key: string]: GTFSSource } = {
 
 class GTFSMultiCache {
   private caches: Map<string, CacheEntry> = new Map();
-  private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  private readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds (1 week)
   private fetchPromises: Map<string, Promise<GTFSData>> = new Map();
 
   async getGTFSData(sourceId: string = 'krakow'): Promise<GTFSData> {

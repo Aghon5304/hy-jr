@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import StopSearchInput from './StopSearchInput';
 import { MappedStop } from '@/lib/gtfsMapService';
+import { useGTFSCache } from '@/lib/clientCache';
 
 interface TripPlannerProps {
   onPlanTrip: (tripData: TripPlanData) => void;
@@ -25,6 +26,7 @@ export interface TripPlanData {
 export default function TripPlanner({ onPlanTrip, isSearching }: TripPlannerProps) {
   const [stops, setStops] = useState<MappedStop[]>([]);
   const [isLoadingStops, setIsLoadingStops] = useState(false);
+  const { getCachedData, isCacheValid } = useGTFSCache();
   
   const [tripData, setTripData] = useState<TripPlanData>({
     from: '',
@@ -47,29 +49,62 @@ export default function TripPlanner({ onPlanTrip, isSearching }: TripPlannerProp
         const sources = ['krakow1', 'krakow2', 'krakow3', 'ald', 'kml'];
         const allStops: MappedStop[] = [];
 
-        for (const source of sources) {
-          try {
-            console.log(`TripPlanner: Fetching stops from ${source}...`);
-            const response = await fetch(`/api/gtfsStatic?file=stops&source=${source}`);
-            if (response.ok) {
-              const responseData = await response.json();
-              const data = responseData.data;
-              console.log(`TripPlanner: Got ${data?.length || 0} stops from ${source}`);
-              
-              const mappedStops: MappedStop[] = data?.map((stop: any) => ({
-                id: stop.stop_id,
-                name: stop.stop_name,
-                lat: parseFloat(stop.stop_lat),
-                lng: parseFloat(stop.stop_lon),
-                code: stop.stop_code,
-                zone: stop.zone_id,
-                routes: [],
-                sourceId: source
-              })) || [];
-              allStops.push(...mappedStops);
+        // Try to load from cache first
+        if (isCacheValid()) {
+          console.log('📦 TripPlanner: Loading stops from cache...');
+          
+          for (const source of sources) {
+            try {
+              const cachedStops = await getCachedData(source, 'stops');
+              if (cachedStops && cachedStops.length > 0) {
+                console.log(`TripPlanner: Got ${cachedStops.length} cached stops from ${source}`);
+                
+                const mappedStops: MappedStop[] = cachedStops.map((stop: any) => ({
+                  id: stop.stop_id,
+                  name: stop.stop_name,
+                  lat: parseFloat(stop.stop_lat),
+                  lng: parseFloat(stop.stop_lon),
+                  code: stop.stop_code,
+                  zone: stop.zone_id,
+                  routes: [],
+                  sourceId: source
+                }));
+                allStops.push(...mappedStops);
+              }
+            } catch (error) {
+              console.warn(`TripPlanner: Failed to load cached stops from ${source}:`, error);
             }
-          } catch (error) {
-            console.warn(`TripPlanner: Failed to fetch stops from ${source}:`, error);
+          }
+        }
+
+        // If no cached data or cache invalid, fetch from API
+        if (allStops.length === 0) {
+          console.log('🌐 TripPlanner: Loading stops from API...');
+          
+          for (const source of sources) {
+            try {
+              console.log(`TripPlanner: Fetching stops from ${source}...`);
+              const response = await fetch(`/api/gtfsStatic?file=stops&source=${source}`);
+              if (response.ok) {
+                const responseData = await response.json();
+                const data = responseData.data;
+                console.log(`TripPlanner: Got ${data?.length || 0} stops from ${source}`);
+                
+                const mappedStops: MappedStop[] = data?.map((stop: any) => ({
+                  id: stop.stop_id,
+                  name: stop.stop_name,
+                  lat: parseFloat(stop.stop_lat),
+                  lng: parseFloat(stop.stop_lon),
+                  code: stop.stop_code,
+                  zone: stop.zone_id,
+                  routes: [],
+                  sourceId: source
+                })) || [];
+                allStops.push(...mappedStops);
+              }
+            } catch (error) {
+              console.warn(`TripPlanner: Failed to fetch stops from ${source}:`, error);
+            }
           }
         }
 
@@ -116,11 +151,11 @@ export default function TripPlanner({ onPlanTrip, isSearching }: TripPlannerProp
     e.preventDefault();
     
     // Basic validation passed - button is now functional
-    console.log('🔍 Route search initiated!', {
+    console.log('🔍 Route search initiated using stop names!', {
+      fromName: tripData.fromStop?.name,
+      toName: tripData.toStop?.name,
       from: tripData.from,
-      to: tripData.to,
-      fromStop: tripData.fromStop,
-      toStop: tripData.toStop
+      to: tripData.to
     });
     
     // Show user feedback

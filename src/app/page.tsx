@@ -9,6 +9,7 @@ import GoogleMapsComponent from '@/components/GoogleMapsComponent'; // DODANY IM
 import TripIssuesNotification from '@/components/TripIssuesNotification';
 import TripInfoPanel from '@/components/TripInfoPanel';
 import UserPanel from '@/components/UserPanel';
+import { CacheStatus } from '@/components/CacheInitializer';
 import { 
   saveJourney, 
   getSavedJourneys, 
@@ -236,9 +237,9 @@ export default function Home() {
     }
 
     try {
-      // Find routes connecting both stops
-      console.log('🔍 Finding routes between stops:', tripData.fromStop.id, 'and', tripData.toStop.id);
-      const routeConnections = await findRouteBetweenStops(tripData.fromStop.id, tripData.toStop.id);
+      // Find routes connecting both stops using stop names
+      console.log('🔍 Finding routes between stops by name:', tripData.fromStop.name, 'and', tripData.toStop.name);
+      const routeConnections = await findRouteBetweenStops(tripData.fromStop.name, tripData.toStop.name);
 
       // Set route data for visualization
       setSelectedRoutes(routeConnections);
