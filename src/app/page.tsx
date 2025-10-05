@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import TripPlanner, { TripPlanData } from '@/components/TripPlanner';
 import ReportIssueWidget from '@/components/ReportIssueWidget';
 import { Report } from '@/types/Report';
@@ -46,42 +46,98 @@ export default function Home() {
   const [delays, setDelays] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [routeCollisions, setRouteCollisions] = useState<any[]>([]);
+  const [acknowledgedDelayIds, setAcknowledgedDelayIds] = useState<Set<string>>(new Set());
   const [savedJourney, setSavedJourney] = useState<SavedJourney | null>(null);
   const [showSaveButton, setShowSaveButton] = useState(false);
   const [currentTripData, setCurrentTripData] = useState<TripPlanData | null>(null);
   const [showTripInfoPanel, setShowTripInfoPanel] = useState(false);
+  const lastNotificationTimeRef = useRef<number>(0);
 
-  // Function to fetch delays from delays.json
-  const fetchDelays = async () => {
+  // Function to fetch delays from delays.json (optimized for real-time polling)
+  const fetchDelays = async (isPolling = false) => {
     try {
-      console.log('🚨 Fetching delay reports from API...');
-      const response = await fetch('/api/delays');
-      console.log('📡 API Response status:', response.status);
+      if (!isPolling) {
+        console.log('🚨 Fetching delay reports from API...');
+      } else {
+        console.log('🔄 Polling fetch at', new Date().toLocaleTimeString());
+      }
+      
+      const response = await fetch('/api/delays', {
+        headers: {
+          'Cache-Control': 'no-cache', // Ensure fresh data
+        }
+      });
+      
+      if (!isPolling) {
+        console.log('📡 API Response status:', response.status);
+      }
       
       if (response.ok) {
         const data = await response.json();
         const delayReports = data.delays || [];
-        console.log(`📊 Loaded ${delayReports.length} delay reports:`, delayReports);
-        console.log('🗺️ Setting delays state:', delayReports);
-        setDelays(delayReports);
         
-        // Check saved journey for collisions with new delays
-        if (savedJourney && delayReports.length > 0) {
-          const journeyCollisions = checkJourneyCollisions(savedJourney, delayReports);
-          if (journeyCollisions.length > 0) {
-            console.log('🚨 Saved journey has collisions with new delays:', journeyCollisions);
-            setRouteCollisions(journeyCollisions);
-            setShowTripIssuesNotification(true);
-            if (journeyCollisions[0]?.delay?.cause) {
-              setSelectedIssueType(journeyCollisions[0].delay.cause);
-            }
+        // Only log details if not polling or if there are changes
+        const hasChanges = JSON.stringify(delayReports) !== JSON.stringify(delays);
+        
+        if (!isPolling || hasChanges) {
+          console.log(`📊 ${isPolling ? 'Updated' : 'Loaded'} ${delayReports.length} delay reports`);
+          if (hasChanges && isPolling) {
+            console.log('� Delay data updated:', delayReports);
           }
         }
         
-        // Log each delay location
-        delayReports.forEach((delay: any, index: number) => {
-          console.log(`🚨 Delay ${index + 1}: ${delay.cause} at ${delay.location.lat}, ${delay.location.lng}`);
+        setDelays(delayReports);
+        
+        // Check saved journey for collisions with new delays using current state
+        setSavedJourney(currentJourney => {
+          if (currentJourney && delayReports.length > 0) {
+            const journeyCollisions = checkJourneyCollisions(currentJourney, delayReports);
+            if (journeyCollisions.length > 0) {
+              setRouteCollisions(prevCollisions => {
+                return journeyCollisions;
+              });
+              
+              // Check for unacknowledged delays using current state
+              setAcknowledgedDelayIds(currentAcknowledgedIds => {
+                const newUnacknowledgedDelays = journeyCollisions.filter(collision => 
+                  !currentAcknowledgedIds.has(collision.delay.id)
+                );
+                
+                if (newUnacknowledgedDelays.length > 0) {
+                  const currentTime = Date.now();
+                  const timeSinceLastNotification = currentTime - lastNotificationTimeRef.current;
+                  
+                  console.log('🚨 POLLING: New unacknowledged journey collisions detected:', newUnacknowledgedDelays.map(c => c.delay.id));
+                  console.log('⏱️ POLLING: Time since last notification:', timeSinceLastNotification, 'ms');
+                  
+                  setShowTripIssuesNotification(prev => {
+                    if (!prev && timeSinceLastNotification > 10000) { // Only show if not already showing and 10 seconds have passed
+                      console.log('🔔 POLLING: Showing notification for delays:', newUnacknowledgedDelays.map(c => c.delay.id));
+                      lastNotificationTimeRef.current = currentTime;
+                      if (newUnacknowledgedDelays[0]?.delay?.cause) {
+                        setSelectedIssueType(newUnacknowledgedDelays[0].delay.cause);
+                      }
+                      return true;
+                    } else {
+                      console.log('🚫 POLLING: Notification blocked - already showing or too recent');
+                    }
+                    return prev;
+                  });
+                }
+                
+                return currentAcknowledgedIds; // Return unchanged acknowledged IDs
+              });
+            }
+          }
+          return currentJourney; // Return unchanged journey
         });
+        
+        // Only log individual delays on initial load, not during polling
+        if (!isPolling && delayReports.length > 0) {
+          delayReports.forEach((delay: any, index: number) => {
+            console.log(`🚨 Delay ${index + 1}: ${delay.cause} at ${delay.location.lat}, ${delay.location.lng}`);
+          });
+        }
       } else {
         console.error('❌ Failed to fetch delays, status:', response.status);
         const errorText = await response.text();
@@ -92,11 +148,26 @@ export default function Home() {
     }
   };
 
-  // Load delays on page initialization
+  // Load delays on page initialization and set up real-time polling
   useEffect(() => {
     fetchDelays();
     loadSavedJourney();
-  }, []);
+    
+    // Set up real-time delay polling every 4 seconds
+    console.log('🔄 Setting up real-time delay polling every 4 seconds');
+    const delayPollingInterval = setInterval(() => {
+      console.log('⏰ Polling tick at', new Date().toLocaleTimeString());
+      fetchDelays(true); // Pass true for polling mode (reduced logging)
+    }, 4000); // 4 seconds
+    
+    console.log('✅ Polling interval created:', delayPollingInterval);
+    
+    // Cleanup interval on unmount
+    return () => {
+      console.log('🛑 Cleaning up delay polling interval');
+      clearInterval(delayPollingInterval);
+    };
+  }, []); // Empty dependency array since we want this to run once on mount
 
   // Load saved journey on mount
   const loadSavedJourney = () => {
@@ -230,6 +301,7 @@ export default function Home() {
     console.log('🚀 Trip planning initiated:', tripData);
     setIsSearching(true);
     setRouteCollisions([]);
+    setAcknowledgedDelayIds(new Set()); // Clear acknowledged delays for new trip
     
     if (!tripData.fromStop || !tripData.toStop) {
       setIsSearching(false);
@@ -314,11 +386,38 @@ export default function Home() {
     console.log('Route collisions detected:', collisions);
     if (collisions.length > 0) {
       setRouteCollisions(collisions);
-      setShowTripIssuesNotification(true);
-      // Set the issue type based on the first collision
-      if (collisions[0]?.delay?.cause) {
-        setSelectedIssueType(collisions[0].delay.cause);
-      }
+      
+      // Only show notification if there are unacknowledged delays
+      setAcknowledgedDelayIds(currentAcknowledgedIds => {
+        const newUnacknowledgedDelays = collisions.filter(collision => 
+          !currentAcknowledgedIds.has(collision.delay.id)
+        );
+        
+        if (newUnacknowledgedDelays.length > 0 && !showTripIssuesNotification) {
+          const currentTime = Date.now();
+          const timeSinceLastNotification = currentTime - lastNotificationTimeRef.current;
+          
+          console.log('🚨 MAP: New unacknowledged collisions detected:', newUnacknowledgedDelays.map(c => c.delay.id));
+          console.log('🔍 MAP: Current acknowledged IDs:', Array.from(currentAcknowledgedIds));
+          console.log('⏱️ MAP: Time since last notification:', timeSinceLastNotification, 'ms');
+          
+          if (timeSinceLastNotification > 10000) { // Only show if 10 seconds have passed
+            console.log('🔔 MAP: Showing notification');
+            lastNotificationTimeRef.current = currentTime;
+            setShowTripIssuesNotification(true);
+            // Set the issue type based on the first unacknowledged collision
+            if (newUnacknowledgedDelays[0]?.delay?.cause) {
+              setSelectedIssueType(newUnacknowledgedDelays[0].delay.cause);
+            }
+          } else {
+            console.log('🚫 MAP: Notification blocked - too recent');
+          }
+        } else {
+          console.log('ℹ️ All collisions already acknowledged, no notification shown');
+        }
+        
+        return currentAcknowledgedIds; // Return unchanged
+      });
     }
   };
 
@@ -465,6 +564,18 @@ export default function Home() {
           collisions={routeCollisions}
           onClose={() => {
             setShowTripIssuesNotification(false);
+            
+            // Mark all current collision delays as acknowledged
+            if (routeCollisions.length > 0) {
+              const delayIds = routeCollisions.map(collision => collision.delay.id);
+              setAcknowledgedDelayIds(prev => {
+                const newSet = new Set(prev);
+                delayIds.forEach(id => newSet.add(id));
+                console.log('✅ Acknowledged delay IDs:', delayIds);
+                return newSet;
+              });
+            }
+            
             // DON'T clear routeCollisions here - let them persist for the side panel
           }}
         />
