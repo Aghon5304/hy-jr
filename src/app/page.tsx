@@ -51,6 +51,7 @@ export default function Home() {
   const [showSaveButton, setShowSaveButton] = useState(false);
   const [currentTripData, setCurrentTripData] = useState<TripPlanData | null>(null);
   const [showTripInfoPanel, setShowTripInfoPanel] = useState(false);
+  const [shouldFocusOnOrigin, setShouldFocusOnOrigin] = useState(false);
   const lastNotificationTimeRef = useRef<number>(0);
 
   // Function to fetch delays from delays.json (optimized for real-time polling)
@@ -351,6 +352,14 @@ export default function Home() {
       
       setSearchedStops(stopsToShow);
       
+      // Trigger smooth zoom to origin after trip is found
+      setShouldFocusOnOrigin(true);
+      
+      // Reset focus trigger after a delay to allow for future trips
+      setTimeout(() => {
+        setShouldFocusOnOrigin(false);
+      }, 2000);
+      
       // Store current trip data for saving
       setCurrentTripData(tripData);
       setShowSaveButton(routeConnections.length > 0);
@@ -461,6 +470,7 @@ export default function Home() {
           vehicles={liveVehicles} // Show real-time vehicle positions
           delays={delays} // Show delay reports from delays.json
           apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE"}
+          shouldFocusOnOrigin={shouldFocusOnOrigin} // Trigger zoom to start point
           showStops={true}
           showRoutes={true} // Enable route visualization
           showVehicles={true} // Enable live vehicle tracking

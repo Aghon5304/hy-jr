@@ -26,6 +26,7 @@ interface GoogleMapsProps {
   onStopClick?: (stop: any) => void;
   onRouteClick?: (route: MappedRoute) => void;
   onRouteCollisions?: (collisions: any[]) => void;
+  shouldFocusOnOrigin?: boolean; // New prop to trigger zoom to origin
   showStops?: boolean;
   showRoutes?: boolean;
   showVehicles?: boolean;
@@ -98,6 +99,7 @@ export default function GoogleMapsComponent({
   onStopClick,
   onRouteClick,
   onRouteCollisions,
+  shouldFocusOnOrigin = false,
   showStops = true,
   showRoutes = false,
   showVehicles = true,
@@ -1012,6 +1014,31 @@ export default function GoogleMapsComponent({
       polylinesRef.current.push(polyline);
     });
   }, [routes, stops, showRoutes, isLoaded, onRouteClick]);
+
+  // Smooth zoom to origin when trip is found
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isLoaded || !shouldFocusOnOrigin) return;
+
+    // Find the origin stop
+    const originStop = stops.find(stop => stop.type === 'origin');
+    if (!originStop) return;
+
+    console.log('🎯 Focusing map on origin:', originStop.name);
+
+    // Smoothly animate to the origin with a comfortable zoom level
+    mapInstanceRef.current.panTo({
+      lat: originStop.lat,
+      lng: originStop.lng
+    });
+
+    // Add a slight delay before zooming to make the animation smoother
+    setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.setZoom(15); // Close zoom level to show start point details
+      }
+    }, 300); // 300ms delay for smooth pan-then-zoom effect
+
+  }, [shouldFocusOnOrigin, stops, isLoaded]);
 
   // Cleanup on unmount
   useEffect(() => {
