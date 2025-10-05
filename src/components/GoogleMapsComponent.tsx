@@ -581,6 +581,7 @@ export default function GoogleMapsComponent({
       if ((marker as any).pulseInterval) {
         clearInterval((marker as any).pulseInterval);
       }
+
       marker.setMap(null);
     });
     delayMarkersRef.current = [];
@@ -882,6 +883,10 @@ export default function GoogleMapsComponent({
         // Clear pulse interval if exists
         if ((marker as any).pulseInterval) {
           clearInterval((marker as any).pulseInterval);
+        }
+        // Clear bounce animation if exists
+        if ((marker as any).bounceAnimation) {
+          clearInterval((marker as any).bounceAnimation);
         }
         marker.setMap(null);
       });
