@@ -298,7 +298,13 @@ export default function GoogleMapsComponent({
     if (!mapInstanceRef.current || !isLoaded) return;
 
     // Clear existing markers
-    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current.forEach(marker => {
+      // Clear pulse interval if exists
+      if ((marker as any).pulseInterval) {
+        clearInterval((marker as any).pulseInterval);
+      }
+      marker.setMap(null);
+    });
     markersRef.current = [];
 
     if (!showStops) return;
@@ -307,21 +313,155 @@ export default function GoogleMapsComponent({
     stops.forEach(stop => {
       const color = getStopColor(stop);
       
-      // Create simple circle marker
-      const marker = new window.google.maps.Marker({
-        position: { lat: stop.lat, lng: stop.lng },
-        map: mapInstanceRef.current,
-        title: stop.name,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: stop.type ? 15 : 8, // Bigger for searched stops
-          fillColor: color,
-          fillOpacity: 1,
-          strokeWeight: 3,
-          strokeColor: '#ffffff'
-        },
-        zIndex: stop.type ? 1000 : 100 // Higher priority for searched stops
-      });
+      let marker: any;
+      
+      // Create shiny markers for origin and destination
+      if (stop.type === 'origin' || stop.type === 'destination') {
+        const isOrigin = stop.type === 'origin';
+        const markerColor = isOrigin ? '#22c55e' : '#ef4444'; // Green for origin, red for destination
+        const markerIcon = isOrigin ? '🚀' : '🎯'; // Rocket for start, target for end
+        
+        // Create shiny SVG with pulsing effect
+        const createShinySVG = (color: string, icon: string) => {
+          return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+            <svg width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="shineGrad" cx="30%" cy="20%" r="70%">
+                  <stop offset="0%" stop-color="${color}" stop-opacity="1"/>
+                  <stop offset="70%" stop-color="${color}" stop-opacity="0.8"/>
+                  <stop offset="100%" stop-color="${color}" stop-opacity="0.6"/>
+                </radialGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+              
+              <!-- Outer glow ring -->
+              <circle cx="30" cy="30" r="28" 
+                      fill="none" 
+                      stroke="${color}" 
+                      stroke-width="2" 
+                      stroke-opacity="0.3" 
+                      filter="url(#glow)"/>
+                      
+              <!-- Main circle with gradient -->
+              <circle cx="30" cy="30" r="20" 
+                      fill="url(#shineGrad)" 
+                      stroke="#ffffff" 
+                      stroke-width="3"/>
+                      
+              <!-- Inner highlight for shine effect -->
+              <circle cx="25" cy="20" r="6" 
+                      fill="#ffffff" 
+                      opacity="0.6"/>
+                      
+              <!-- Icon text -->
+              <text x="30" y="37" text-anchor="middle" 
+                    font-family="Arial" font-size="16" 
+                    fill="#ffffff" font-weight="bold">${icon}</text>
+            </svg>
+          `)}`;
+        };
+
+        marker = new window.google.maps.Marker({
+          position: { lat: stop.lat, lng: stop.lng },
+          map: mapInstanceRef.current,
+          title: stop.name,
+          icon: {
+            url: createShinySVG(markerColor, markerIcon),
+            scaledSize: new window.google.maps.Size(60, 60),
+            anchor: new window.google.maps.Point(30, 30)
+          },
+          zIndex: 1000
+        });
+
+        // Add pulsing glow animation for origin/destination markers
+        let glowIntensity = 0.3;
+        let glowDirection = 1;
+        const pulseInterval = setInterval(() => {
+          glowIntensity += glowDirection * 0.015; // Smooth glow intensity change
+          if (glowIntensity >= 0.6) {
+            glowDirection = -1;
+          } else if (glowIntensity <= 0.1) {
+            glowDirection = 1;
+          }
+          
+          // Create updated SVG with animated glow but same size
+          const createAnimatedShinySVG = (color: string, icon: string, glowOpacity: number) => {
+            return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+              <svg width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="shineGrad" cx="30%" cy="20%" r="70%">
+                    <stop offset="0%" stop-color="${color}" stop-opacity="1"/>
+                    <stop offset="70%" stop-color="${color}" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="${color}" stop-opacity="0.6"/>
+                  </radialGradient>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
+                
+                <!-- Animated outer glow ring -->
+                <circle cx="30" cy="30" r="28" 
+                        fill="none" 
+                        stroke="${color}" 
+                        stroke-width="3" 
+                        stroke-opacity="${glowOpacity}" 
+                        filter="url(#glow)"/>
+                        
+                <!-- Main circle stays same size -->
+                <circle cx="30" cy="30" r="20" 
+                        fill="url(#shineGrad)" 
+                        stroke="#ffffff" 
+                        stroke-width="3"/>
+                        
+                <!-- Inner highlight for shine effect -->
+                <circle cx="25" cy="20" r="6" 
+                        fill="#ffffff" 
+                        opacity="0.6"/>
+                        
+                <!-- Icon text -->
+                <text x="30" y="37" text-anchor="middle" 
+                      font-family="Arial" font-size="16" 
+                      fill="#ffffff" font-weight="bold">${icon}</text>
+              </svg>
+            `)}`;
+          };
+          
+          marker.setIcon({
+            url: createAnimatedShinySVG(markerColor, markerIcon, glowIntensity),
+            scaledSize: new window.google.maps.Size(60, 60), // Fixed size
+            anchor: new window.google.maps.Point(30, 30) // Fixed anchor
+          });
+        }, 50); // Smooth 20fps animation
+
+        // Store interval reference for cleanup
+        (marker as any).pulseInterval = pulseInterval;
+      } else {
+        // Create simple circle marker for regular stops
+        marker = new window.google.maps.Marker({
+          position: { lat: stop.lat, lng: stop.lng },
+          map: mapInstanceRef.current,
+          title: stop.name,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeWeight: 3,
+            strokeColor: '#ffffff'
+          },
+          zIndex: 100
+        });
+      }
 
       // Info window for stop details
       const infoWindow = new window.google.maps.InfoWindow({
@@ -673,16 +813,16 @@ export default function GoogleMapsComponent({
         let waveDirection = 1;
         
         const pulseInterval = setInterval(() => {
-          // Shadow pulsing
-          currentShadowOpacity += pulseDirection * 0.05;
+          // Shadow pulsing - smaller increments for smoother animation
+          currentShadowOpacity += pulseDirection * 0.02;
           if (currentShadowOpacity >= 0.8) {
             pulseDirection = -1;
           } else if (currentShadowOpacity <= 0.1) {
             pulseDirection = 1;
           }
           
-          // Wave expanding
-          waveRadius += waveDirection * 2;
+          // Wave expanding - smaller increments
+          waveRadius += waveDirection * 1.2;
           if (waveRadius >= 50) {
             waveRadius = 10; // Reset wave
           }
@@ -692,7 +832,7 @@ export default function GoogleMapsComponent({
             scaledSize: new window.google.maps.Size(80, 80),
             anchor: new window.google.maps.Point(40, 52)
           });
-        }, 100); // Faster for smooth wave animation
+        }, 50); // Much faster refresh rate: 20fps for smooth animation
 
         // Store interval reference for cleanup
         (marker as any).pulseInterval = pulseInterval;
@@ -876,7 +1016,13 @@ export default function GoogleMapsComponent({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      markersRef.current.forEach(marker => marker.setMap(null));
+      markersRef.current.forEach(marker => {
+        // Clear pulse interval if exists
+        if ((marker as any).pulseInterval) {
+          clearInterval((marker as any).pulseInterval);
+        }
+        marker.setMap(null);
+      });
       polylinesRef.current.forEach(polyline => polyline.setMap(null));
       vehicleMarkersRef.current.forEach(marker => marker.setMap(null));
       delayMarkersRef.current.forEach(marker => {
