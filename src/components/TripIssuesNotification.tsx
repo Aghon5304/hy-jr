@@ -100,22 +100,22 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
   const getIssueTypeLabel = (selectedType: string, delayType: DelayReason) => {
     // Use the original difficulty option labels when possible
     const difficultyLabels: { [key: string]: string } = {
-      'delay': 'Vehicle Delay',
-      'breakdown': 'Vehicle Breakdown',
-      'overcrowding': 'Overcrowding',
-      'accessibility': 'Accessibility Issue',
-      'safety': 'Safety Concern',
-      'other': 'Other Issue'
+      'delay': 'Opóźnienie Pojazdu',
+      'breakdown': 'Awaria Pojazdu',
+      'overcrowding': 'Przepełnienie',
+      'accessibility': 'Problem z Dostępnością',
+      'safety': 'Problem Bezpieczeństwa',
+      'other': 'Inny Problem'
     };
     
     return difficultyLabels[selectedType] || {
-      [DelayReason.BREAKDOWN]: 'Vehicle Breakdown',
-      [DelayReason.ACCIDENT]: 'Accident',
-      [DelayReason.TRAFFIC]: 'Heavy Traffic',
-      [DelayReason.WEATHER]: 'Weather Issue',
-      [DelayReason.TECHNICAL]: 'Technical Problem',
-      [DelayReason.OTHER]: 'Other Issue'
-    }[delayType] || 'Unknown Issue';
+      [DelayReason.BREAKDOWN]: 'Awaria Pojazdu',
+      [DelayReason.ACCIDENT]: 'Wypadek',
+      [DelayReason.TRAFFIC]: 'Duży Ruch',
+      [DelayReason.WEATHER]: 'Problem Pogodowy',
+      [DelayReason.TECHNICAL]: 'Problem Techniczny',
+      [DelayReason.OTHER]: 'Inny Problem'
+    }[delayType] || 'Nieznany Problem';
   };
 
   const handleClose = () => {
@@ -138,7 +138,7 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
             <div className="flex items-center space-x-2">
               <span className="text-xl">🚌</span>
               <div>
-                <h2 className="text-base font-bold">Trip Issues</h2>
+                <h2 className="text-base font-bold">Problemy z Podróżą</h2>
                 <p className="text-red-100 text-xs">{tripId}</p>
               </div>
             </div>
@@ -158,7 +158,7 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
             <div className="flex items-center justify-center space-x-2 mb-1">
               <span className="text-2xl">⏰</span>
               <div>
-                <p className="text-xs text-gray-600">Estimated Delay</p>
+                <p className="text-xs text-gray-600">Szacowane Opóźnienie</p>
                 <p className="text-2xl font-bold text-red-600">{estimatedDelay} min</p>
               </div>
             </div>
@@ -169,7 +169,7 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
             <div className="flex items-center space-x-2">
               <span className="text-lg">{getIssueIcon(issueType)}</span>
               <div>
-                <p className="text-xs text-gray-600">Issue Type</p>
+                <p className="text-xs text-gray-600">Typ Problemu</p>
                 <p className="text-sm font-semibold text-gray-800">{getIssueTypeLabel(selectedIssueType, issueType)}</p>
               </div>
             </div>
@@ -180,12 +180,12 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
             <div className="flex items-center space-x-2">
               <span className="text-lg">📍</span>
               <div className="flex-1">
-                <p className="text-xs text-gray-600">Reported Location</p>
+                <p className="text-xs text-gray-600">Zgłoszona Lokalizacja</p>
                 <p className="text-sm font-semibold text-gray-800">{reportedLocation}</p>
                 {firstCollision?.delay?.vehicleNumber && (
-                  <p className="text-xs text-gray-500">Vehicle: {firstCollision.delay.vehicleNumber}</p>
+                  <p className="text-xs text-gray-500">Pojazd: {firstCollision.delay.vehicleNumber}</p>
                 )}
-                <p className="text-xs text-gray-500">Reported: {getReportTime()}</p>
+                <p className="text-xs text-gray-500">Zgłoszono: {getReportTime()}</p>
               </div>
             </div>
           </div>
@@ -195,14 +195,14 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
             <div className="flex items-center space-x-2">
               <span className="text-lg">👥</span>
               <div>
-                <p className="text-xs text-gray-600">Number of Reports</p>
+                <p className="text-xs text-gray-600">Liczba Zgłoszeń</p>
                 <div className="flex items-center space-x-2">
                   <p className="text-sm font-semibold text-gray-800">{numberOfReports}</p>
                   <span className={`
                     px-1.5 py-0.5 rounded-full text-xs font-medium
                     ${getSeverityColor(numberOfReports)}
                   `}>
-                    {numberOfReports >= 6 ? 'High' : numberOfReports >= 3 ? 'Medium' : 'Low'}
+                    {numberOfReports >= 6 ? 'Wysoki' : numberOfReports >= 3 ? 'Średni' : 'Niski'}
                   </span>
                 </div>
               </div>
@@ -217,19 +217,19 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
               onClick={handleClose}
               className="bg-green-500 hover:bg-green-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
             >
-              Confirm
+              Potwierdź
             </button>
             <button
               onClick={handleClose}
               className="bg-red-500 hover:bg-red-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
             >
-              Deny
+              Odrzuć
             </button>
             <button
               onClick={handleClose}
               className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-2 rounded-lg text-sm font-medium transition-colors"
             >
-              Dismiss
+              Odrzuć
             </button>
           </div>
         </div>

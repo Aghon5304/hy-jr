@@ -139,7 +139,7 @@ export default function TripPlanner({ onPlanTrip, isSearching }: TripPlannerProp
           id="from-stop"
           value={tripData.from}
           onChange={(value, stop) => handleStopChange('from', value, stop)}
-          placeholder="From"
+          placeholder="Skąd"
           stops={stops}
           isLoading={isLoadingStops}
         />
@@ -150,7 +150,7 @@ export default function TripPlanner({ onPlanTrip, isSearching }: TripPlannerProp
             id="to-stop"
             value={tripData.to}
             onChange={(value, stop) => handleStopChange('to', value, stop)}
-            placeholder="To"
+            placeholder="Dokąd"
             stops={stops}
             isLoading={isLoadingStops}
           />

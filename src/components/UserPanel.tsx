@@ -46,7 +46,7 @@ export default function UserPanel({ name = "User", points = 0 }: UserPanelProps)
           {/* Name and Points */}
           <div className="flex-1">
             <div className="text-sm font-medium text-gray-900">{name}</div>
-            <div className="text-xs text-gray-500">{points.toLocaleString()} points earned</div>
+            <div className="text-xs text-gray-500">{points.toLocaleString()} zdobytych punktów</div>
           </div>
 
           {/* Chevron indicator */}
@@ -105,11 +105,11 @@ export default function UserPanel({ name = "User", points = 0 }: UserPanelProps)
               </div>
               <div className="flex-1">
                 <div className="text-lg font-bold text-gray-900">{name}</div>
-                <div className="text-xs text-gray-500">Transit User</div>
+                <div className="text-xs text-gray-500">Użytkownik Transportu</div>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-blue-600">{points.toLocaleString()}</div>
-                <div className="text-xs text-gray-500">Total Points</div>
+                <div className="text-xs text-gray-500">Łączne Punkty</div>
               </div>
             </div>
 
@@ -124,8 +124,8 @@ export default function UserPanel({ name = "User", points = 0 }: UserPanelProps)
                   <div className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-500" style={{width: '68%'}}></div>
                 </div>
                 <div className="flex justify-between mt-1 text-xs text-gray-500">
-                  <span>1,250 pts</span>
-                  <span>350 more to level up</span>
+                  <span>1,250 pkt</span>
+                  <span>350 do następnego poziomu</span>
                 </div>
               </div>
             </div>
@@ -134,11 +134,11 @@ export default function UserPanel({ name = "User", points = 0 }: UserPanelProps)
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <div className="text-sm font-semibold text-gray-900">12</div>
-                <div className="text-xs text-gray-500">Trips This Week</div>
+                <div className="text-xs text-gray-500">Podróże w tym tygodniu</div>
               </div>
               <div className="text-center p-2 bg-gray-50 rounded-lg">
                 <div className="text-sm font-semibold text-gray-900">3.2 kg</div>
-                <div className="text-xs text-gray-500">CO₂ Saved</div>
+                <div className="text-xs text-gray-500">Oszczędzone CO₂</div>
               </div>
             </div>
 
@@ -148,13 +148,13 @@ export default function UserPanel({ name = "User", points = 0 }: UserPanelProps)
                 <div className="flex items-center space-x-2">
                   <div className="text-lg">🏅</div>
                   <div>
-                    <div className="text-sm font-medium text-gray-900">Local Ranking</div>
-                    <div className="text-xs text-gray-600">Krakow Transit Users</div>
+                    <div className="text-sm font-medium text-gray-900">Ranking Lokalny</div>
+                    <div className="text-xs text-gray-600">Użytkownicy Transportu w Krakowie</div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-blue-600">#12</div>
-                  <div className="text-xs text-gray-500">of 2,847</div>
+                  <div className="text-xs text-gray-500">z 2,847</div>
                 </div>
               </div>
             </div>
