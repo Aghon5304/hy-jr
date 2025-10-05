@@ -762,24 +762,24 @@ export default function GoogleMapsComponent({
                 </filter>
               </defs>
               
-              <!-- Pulsing wave circles -->
-              <circle cx="40" cy="36" r="${waveRadius}" 
-                      fill="none" 
-                      stroke="${color}" 
-                      stroke-width="2" 
-                      stroke-opacity="${Math.max(0, 0.8 - waveRadius * 0.02)}"/>
-              <circle cx="40" cy="36" r="${Math.max(0, waveRadius - 15)}" 
-                      fill="none" 
-                      stroke="${color}" 
-                      stroke-width="1.5" 
-                      stroke-opacity="${Math.max(0, 0.6 - (waveRadius - 15) * 0.02)}"
-                      style="${waveRadius < 15 ? 'display:none' : ''}"/>
-              <circle cx="40" cy="36" r="${Math.max(0, waveRadius - 30)}" 
-                      fill="none" 
-                      stroke="${color}" 
-                      stroke-width="1" 
-                      stroke-opacity="${Math.max(0, 0.4 - (waveRadius - 30) * 0.02)}"
-                      style="${waveRadius < 30 ? 'display:none' : ''}"/>
+              <!-- Pulsing wave triangles -->
+              <path d="M40 ${36 - waveRadius}L${40 + waveRadius * 0.866} ${36 + waveRadius * 0.5}H${40 - waveRadius * 0.866}L40 ${36 - waveRadius}Z" 
+                    fill="none" 
+                    stroke="${color}" 
+                    stroke-width="2" 
+                    stroke-opacity="${Math.max(0, 0.8 - waveRadius * 0.02)}"/>
+              <path d="M40 ${36 - Math.max(0, waveRadius - 15)}L${40 + Math.max(0, waveRadius - 15) * 0.866} ${36 + Math.max(0, waveRadius - 15) * 0.5}H${40 - Math.max(0, waveRadius - 15) * 0.866}L40 ${36 - Math.max(0, waveRadius - 15)}Z" 
+                    fill="none" 
+                    stroke="${color}" 
+                    stroke-width="1.5" 
+                    stroke-opacity="${Math.max(0, 0.6 - (waveRadius - 15) * 0.02)}"
+                    style="${waveRadius < 15 ? 'display:none' : ''}"/>
+              <path d="M40 ${36 - Math.max(0, waveRadius - 30)}L${40 + Math.max(0, waveRadius - 30) * 0.866} ${36 + Math.max(0, waveRadius - 30) * 0.5}H${40 - Math.max(0, waveRadius - 30) * 0.866}L40 ${36 - Math.max(0, waveRadius - 30)}Z" 
+                    fill="none" 
+                    stroke="${color}" 
+                    stroke-width="1" 
+                    stroke-opacity="${Math.max(0, 0.4 - (waveRadius - 30) * 0.02)}"
+                    style="${waveRadius < 30 ? 'display:none' : ''}"/>
               
               <!-- Main triangle with colored reverse shadow -->
               <path d="M40 12L60 52H20L40 12Z" 
