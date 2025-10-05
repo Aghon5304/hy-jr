@@ -101,7 +101,8 @@ export default function Home() {
   const loadSavedJourney = () => {
     const activeJourney = getActiveJourney();
     if (activeJourney) {
-      setSavedJourney(activeJourney);
+      // Set showNotification to false when loading from storage (after refresh)
+      setSavedJourney({ ...activeJourney, showNotification: false });
       // Restore the journey visualization
       setSelectedRoutes(activeJourney.routeConnections);
       
@@ -327,7 +328,9 @@ export default function Home() {
         currentTripData.toStop,
         selectedRoutes
       );
-      setSavedJourney(journey);
+      
+      // Set with showNotification initially true
+      setSavedJourney({ ...journey, showNotification: true });
       setShowSaveButton(false);
       
       // Auto-hide the saved journey notification after 3 seconds
@@ -461,7 +464,7 @@ export default function Home() {
           collisions={routeCollisions}
           onClose={() => {
             setShowTripIssuesNotification(false);
-            setRouteCollisions([]);
+            // DON'T clear routeCollisions here - let them persist for the side panel
           }}
         />
       )}
@@ -472,6 +475,7 @@ export default function Home() {
         onClose={() => setShowTripInfoPanel(false)}
         savedJourney={savedJourney}
         onJourneyDeleted={handleJourneyDeleted}
+        collisions={routeCollisions}
       />
 
     </main>

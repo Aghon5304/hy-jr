@@ -212,9 +212,13 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
 
         {/* Footer */}
         <div className="p-3 bg-gray-50 border-t">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={handleClose}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Delay confirmed by user - closing popup');
+                handleClose(); // Close the popup when confirmed
+              }}
               className="bg-green-500 hover:bg-green-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
             >
               Potwierdź
@@ -222,12 +226,6 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
             <button
               onClick={handleClose}
               className="bg-red-500 hover:bg-red-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Odrzuć
-            </button>
-            <button
-              onClick={handleClose}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-2 rounded-lg text-sm font-medium transition-colors"
             >
               Odrzuć
             </button>
