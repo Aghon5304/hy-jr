@@ -36,6 +36,8 @@ export default function Home() {
   const [liveVehicles, setLiveVehicles] = useState<any[]>([]);
   const [selectedRoutes, setSelectedRoutes] = useState<any[]>([]);
   const [delays, setDelays] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [routeCollisions, setRouteCollisions] = useState<any[]>([]);
 
   // Function to fetch delays from delays.json
   const fetchDelays = async () => {
@@ -309,68 +311,75 @@ export default function Home() {
 
   const handlePlanTrip = async (tripData: TripPlanData) => {
     console.log('🚀 Trip planning initiated:', tripData);
+    setIsSearching(true);
+    setRouteCollisions([]);
     
     if (!tripData.fromStop || !tripData.toStop) {
-      alert('Mission failed: Select valid stops from dropdown');
+      setIsSearching(false);
       return;
     }
 
-    // Find routes connecting both stops
-    const routeConnections = await findRouteBetweenStops(tripData.fromStop.id, tripData.toStop.id);
+    try {
+      // Find routes connecting both stops
+      const routeConnections = await findRouteBetweenStops(tripData.fromStop.id, tripData.toStop.id);
 
-    // Set route data for visualization
-    setSelectedRoutes(routeConnections);
+      // Set route data for visualization
+      setSelectedRoutes(routeConnections);
 
-    // Fetch real-time vehicles for these routes
-    let vehicles: any[] = [];
-    if (routeConnections.length > 0) {
-      const routeIds = routeConnections.map(r => r.routeId);
-      console.log('🚌 Fetching live vehicles for routes:', routeIds);
-      vehicles = await fetchRealTimeVehicles(routeIds);
-      setLiveVehicles(vehicles);
-    } else {
-      setLiveVehicles([]);
-    }
-
-    // Deploy visual markers on map
-    const stopsToShow = [
-      {
-        id: tripData.fromStop.id,
-        name: tripData.fromStop.name,
-        lat: tripData.fromStop.lat,
-        lng: tripData.fromStop.lng,
-        type: 'origin',
-        icon: '🟢', // Green for start
-        routeConnections
-      },
-      {
-        id: tripData.toStop.id,
-        name: tripData.toStop.name,
-        lat: tripData.toStop.lat,
-        lng: tripData.toStop.lng,
-        type: 'destination',
-        icon: '🔴', // Red for end
-        routeConnections
+      // Fetch real-time vehicles for these routes
+      let vehicles: any[] = [];
+      if (routeConnections.length > 0) {
+        const routeIds = routeConnections.map(r => r.routeId);
+        console.log('🚌 Fetching live vehicles for routes:', routeIds);
+        vehicles = await fetchRealTimeVehicles(routeIds);
+        setLiveVehicles(vehicles);
+      } else {
+        setLiveVehicles([]);
       }
-    ];
-    
-    setSearchedStops(stopsToShow);
-    
-    console.log('🗺️ Visual markers deployed:', stopsToShow);
-    console.log('🚌 Route connections found:', routeConnections);
-    console.log('🚍 Live vehicles found:', vehicles.length);
-    
-    if (routeConnections.length > 0) {
-      const routeNames = routeConnections.map(r => r.routeShortName || r.routeId).join(', ');
-      alert(`🎯 LIVE ROUTE FOUND!\n\n🟢 Origin: ${tripData.fromStop.name}\n🔴 Destination: ${tripData.toStop.name}\n🚌 Routes: ${routeNames}\n🚍 Live Vehicles: ${vehicles.length}\n\nCheck the map for real-time visualization!`);
-    } else {
-      alert(`🚨 NO DIRECT ROUTE\n\n🟢 Origin: ${tripData.fromStop.name}\n🔴 Destination: ${tripData.toStop.name}\n\nThese stops are not connected by a direct bus route. Transfer required!`);
+
+      // Deploy visual markers on map
+      const stopsToShow = [
+        {
+          id: tripData.fromStop.id,
+          name: tripData.fromStop.name,
+          lat: tripData.fromStop.lat,
+          lng: tripData.fromStop.lng,
+          type: 'origin',
+          icon: '🟢', // Green for start
+          routeConnections
+        },
+        {
+          id: tripData.toStop.id,
+          name: tripData.toStop.name,
+          lat: tripData.toStop.lat,
+          lng: tripData.toStop.lng,
+          type: 'destination',
+          icon: '🔴', // Red for end
+          routeConnections
+        }
+      ];
+      
+      setSearchedStops(stopsToShow);
+      
+      // Check for route collisions with delays
+      if (routeConnections.length > 0 && delays.length > 0) {
+        // This collision detection will be handled by GoogleMapsComponent
+        // We'll pass a callback to receive collision results
+      }
+      
+      console.log('🗺️ Visual markers deployed:', stopsToShow);
+      console.log('🚌 Route connections found:', routeConnections);
+      console.log('🚍 Live vehicles found:', vehicles.length);
+      
+    } catch (error) {
+      console.error('Error planning trip:', error);
+    } finally {
+      setIsSearching(false);
     }
   };
 
   const handleReportIssue = (report: Report) => {
     console.log('Report submitted:', report);
-    alert(`Issue reported: ${report.reporterLocation === 'on_vehicle' ? 'On vehicle' : 'At stop'}`);
   };
 
   const handleReportDifficulty = async (cause: string, vehicleNumber: string, location: { lat: number; lng: number }) => {
@@ -381,6 +390,18 @@ export default function Home() {
     
     // Refresh delays to show the new report on the map
     await fetchDelays();
+  };
+
+  const handleRouteCollisions = (collisions: any[]) => {
+    console.log('Route collisions detected:', collisions);
+    if (collisions.length > 0) {
+      setRouteCollisions(collisions);
+      setShowTripIssuesNotification(true);
+      // Set the issue type based on the first collision
+      if (collisions[0]?.delay?.cause) {
+        setSelectedIssueType(collisions[0].delay.cause);
+      }
+    }
   };
 
   return (
@@ -397,6 +418,7 @@ export default function Home() {
           showRoutes={true} // Enable route visualization
           showVehicles={true} // Enable live vehicle tracking
           showDelays={delays.length > 0} // Enable delay report visualization only if delays exist
+          onRouteCollisions={handleRouteCollisions} // Handle collision detection
         />
       </div>
 
@@ -405,7 +427,7 @@ export default function Home() {
         <div className={styles.container}>
           {/* Trip Planner na górze */}
           <div className={styles.floatingCard}>
-            <TripPlanner onPlanTrip={handlePlanTrip} />
+            <TripPlanner onPlanTrip={handlePlanTrip} isSearching={isSearching} />
           </div>
           
           {/* Bottom buttons group - Horizontal & Slim */}
@@ -439,9 +461,16 @@ export default function Home() {
 
       {showTripIssuesNotification && (
         <TripIssuesNotification 
-          tripId="Line 23 - Downtown Route"
+          tripId={routeCollisions.length > 0 
+            ? `Route ${routeCollisions[0]?.route?.routeShortName || 'Unknown'} - ${routeCollisions[0]?.route?.routeLongName || 'Transit Route'}`
+            : "Line 23 - Downtown Route"
+          }
           selectedIssueType={selectedIssueType}
-          onClose={() => setShowTripIssuesNotification(false)}
+          collisions={routeCollisions}
+          onClose={() => {
+            setShowTripIssuesNotification(false);
+            setRouteCollisions([]);
+          }}
         />
       )}
 

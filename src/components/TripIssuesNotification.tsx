@@ -6,12 +6,14 @@ import { DelayReason } from '@/types/Report';
 interface TripIssuesNotificationProps {
   tripId?: string;
   selectedIssueType?: string;
+  collisions?: any[];
   onClose?: () => void;
 }
 
 const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({ 
   tripId = "Line 23 - Downtown Route", 
   selectedIssueType = 'delay',
+  collisions = [],
   onClose 
 }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -29,11 +31,47 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
     return mapping[issueType] || DelayReason.OTHER;
   };
 
-  // Single report dummy data
-  const reportedLocation = "Main St & 3rd Ave";
-  const numberOfReports = 7;
-  const estimatedDelay = 12; // minutes
-  const issueType = mapIssueTypeToDelayReason(selectedIssueType);
+  // Calculate data from collisions or use defaults
+  const numberOfReports = collisions.length || 1;
+  const firstCollision = collisions[0];
+  const reportedLocation = firstCollision 
+    ? `Lat: ${firstCollision.delay.location.lat.toFixed(4)}, Lng: ${firstCollision.delay.location.lng.toFixed(4)}`
+    : "Route Location";
+  
+  // Get the most recent report time
+  const getReportTime = () => {
+    if (firstCollision?.delay?.timestamp) {
+      return new Date(firstCollision.delay.timestamp).toLocaleString();
+    }
+    return new Date().toLocaleString();
+  };
+  
+  // Estimate delay based on collision severity and type
+  const calculateEstimatedDelay = () => {
+    if (collisions.length === 0) return 5; // Default fallback
+    
+    const baseDelay: { [key: string]: number } = {
+      'delays': 8,
+      'route-difficulties': 15,
+      'breakdown': 25,
+      'no-vehicle': 30,
+      'route-change': 12,
+      'accessibility': 10,
+      'overcrowding': 6,
+      'ticket-control': 4
+    };
+    
+    const delayType = firstCollision?.delay?.cause || selectedIssueType;
+    const baseTime = baseDelay[delayType] || 10;
+    
+    // Increase delay based on number of reports
+    const multiplier = Math.min(1 + (numberOfReports - 1) * 0.3, 2.5);
+    
+    return Math.round(baseTime * multiplier);
+  };
+  
+  const estimatedDelay = calculateEstimatedDelay();
+  const issueType = mapIssueTypeToDelayReason(firstCollision?.delay?.cause || selectedIssueType);
 
   useEffect(() => {
     // Show notification after component mounts
@@ -141,9 +179,13 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
           <div className="bg-gray-50 rounded-lg p-3 mb-3">
             <div className="flex items-center space-x-2">
               <span className="text-lg">📍</span>
-              <div>
+              <div className="flex-1">
                 <p className="text-xs text-gray-600">Reported Location</p>
                 <p className="text-sm font-semibold text-gray-800">{reportedLocation}</p>
+                {firstCollision?.delay?.vehicleNumber && (
+                  <p className="text-xs text-gray-500">Vehicle: {firstCollision.delay.vehicleNumber}</p>
+                )}
+                <p className="text-xs text-gray-500">Reported: {getReportTime()}</p>
               </div>
             </div>
           </div>
