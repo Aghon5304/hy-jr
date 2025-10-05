@@ -478,8 +478,8 @@ export default function Home() {
           <div className="space-y-2">
             {/* User Panel */}
             <UserPanel 
-              name="John Doe" 
-              points={1250} 
+              name="Robert Makłowicz" 
+              points={1500} 
             />
             
             {/* Trip Planner */}
