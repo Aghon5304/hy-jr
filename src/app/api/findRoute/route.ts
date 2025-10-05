@@ -8,7 +8,8 @@ function findMatchingStops(stops: any[], searchName: string): any[] {
   return stops.filter((stop: any) => {
     if (!stop.stop_name) return false;
     
-    const normalizedStopName = stop.stop_name.toLowerCase().trim();
+    // Ensure stop_name is treated as a string so subsequent operations have proper types
+    const normalizedStopName = String(stop.stop_name).toLowerCase().trim();
     
     // Exact match (highest priority)
     if (normalizedStopName === normalizedSearch) return true;
@@ -19,12 +20,12 @@ function findMatchingStops(stops: any[], searchName: string): any[] {
     if (cleanStopName === cleanSearchName) return true;
     
     // Word-based matching (stop name contains all words from search)
-    const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length > 2);
-    const stopWords = normalizedStopName.split(/\s+/);
+    const searchWords: string[] = normalizedSearch.split(/\s+/).filter(word => word.length > 2);
+    const stopWords: string[] = normalizedStopName.split(/\s+/);
     
     if (searchWords.length > 0) {
-      const matchesAllWords = searchWords.every(searchWord => 
-        stopWords.some(stopWord => 
+      const matchesAllWords = searchWords.every((searchWord: string) => 
+        stopWords.some((stopWord: string) => 
           stopWord.includes(searchWord) || searchWord.includes(stopWord)
         )
       );
