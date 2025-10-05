@@ -17,6 +17,10 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
   onClose 
 }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isCollapsing, setIsCollapsing] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   // Map difficulty options to DelayReason
   const mapIssueTypeToDelayReason = (issueType: string): DelayReason => {
@@ -120,30 +124,93 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
 
   const handleClose = () => {
     setIsVisible(false);
+    setIsExpanded(false);
     setTimeout(() => onClose?.(), 300);
+  };
+
+  const handleToggleExpand = () => {
+    if (isExpanded) {
+      // Start collapse animation
+      setIsCollapsing(true);
+      setTimeout(() => {
+        setIsExpanded(false);
+        setIsCollapsing(false);
+      }, 500); // Match the transition duration
+    } else {
+      // Expand immediately
+      setIsExpanded(true);
+    }
+  };
+
+  // Touch event handlers for swipe gestures
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null); // Reset touch end
+    setTouchStart(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isUpSwipe = distance > 50; // Swipe up threshold
+    const isDownSwipe = distance < -50; // Swipe down threshold
+    
+    if (isUpSwipe && isExpanded) {
+      // Swipe up to minimize when expanded
+      handleToggleExpand();
+    } else if (isDownSwipe && !isExpanded) {
+      // Swipe down to expand when minimized
+      handleToggleExpand();
+    }
+    
+    // Reset touch values
+    setTouchStart(null);
+    setTouchEnd(null);
   };
 
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className={`
-        bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden
-        transform transition-all duration-300 ease-out
-        ${isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}
-      `}>
-        {/* Header */}
+    <div className="fixed top-0 left-0 right-0 z-50 p-4">
+      <div 
+        onClick={handleToggleExpand}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={`
+          bg-white rounded-2xl shadow-2xl max-w-md mx-auto overflow-hidden
+          transform transition-all duration-500 ease-out cursor-pointer
+          ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}
+          ${(isExpanded && !isCollapsing) ? 'max-h-[80vh]' : 'max-h-20'}
+          hover:shadow-xl touch-pan-y
+        `}
+      >
+        {/* Drag Handle - Visual indicator for swipe */}
+        <div className="bg-gradient-to-r from-red-400 to-orange-400 py-1 flex justify-center">
+          <div className="w-8 h-1 bg-white/60 rounded-full"></div>
+        </div>
+
+        {/* Minimized Header - Always Visible */}
         <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="text-xl">🚌</span>
               <div>
-                <h2 className="text-base font-bold">Problemy z Podróżą</h2>
+                <h2 className="text-sm font-bold">
+                  {!isExpanded ? 'Są problemy na trasie! Przesuń lub stuknij aby zobaczyć więcej' : 'Problemy z Podróżą - Przesuń w górę aby zminimalizować'}
+                </h2>
                 <p className="text-red-100 text-xs">{tripId}</p>
               </div>
             </div>
             <button
-              onClick={handleClose}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClose();
+              }}
               className="text-white/80 hover:text-white text-xl font-light"
             >
               ×
@@ -151,86 +218,94 @@ const TripIssuesNotification: React.FC<TripIssuesNotificationProps> = ({
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="p-4">
-          {/* Estimated Delay */}
-          <div className="text-center mb-4">
-            <div className="flex items-center justify-center space-x-2 mb-1">
-              <span className="text-2xl">⏰</span>
-              <div>
-                <p className="text-xs text-gray-600">Szacowane Opóźnienie</p>
-                <p className="text-2xl font-bold text-red-600">{estimatedDelay} min</p>
+        {/* Expanded Content - Only visible when expanded and not collapsing */}
+        {(isExpanded || isCollapsing) && (
+          <div className={`transition-all duration-500 ${isCollapsing ? 'opacity-0 transform -translate-y-4' : 'opacity-100 transform translate-y-0'}`}>
+            {/* Main Content */}
+            <div className="p-4">
+              {/* Estimated Delay */}
+              <div className="text-center mb-4">
+                <div className="flex items-center justify-center space-x-2 mb-1">
+                  <span className="text-2xl">⏰</span>
+                  <div>
+                    <p className="text-xs text-gray-600">Szacowane Opóźnienie</p>
+                    <p className="text-2xl font-bold text-red-600">{estimatedDelay} min</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Issue Type */}
-          <div className="bg-gray-50 rounded-lg p-3 mb-3">
-            <div className="flex items-center space-x-2">
-              <span className="text-lg">{getIssueIcon(issueType)}</span>
-              <div>
-                <p className="text-xs text-gray-600">Typ Problemu</p>
-                <p className="text-sm font-semibold text-gray-800">{getIssueTypeLabel(selectedIssueType, issueType)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="bg-gray-50 rounded-lg p-3 mb-3">
-            <div className="flex items-center space-x-2">
-              <span className="text-lg">📍</span>
-              <div className="flex-1">
-                <p className="text-xs text-gray-600">Zgłoszona Lokalizacja</p>
-                <p className="text-sm font-semibold text-gray-800">{reportedLocation}</p>
-                {firstCollision?.delay?.vehicleNumber && (
-                  <p className="text-xs text-gray-500">Pojazd: {firstCollision.delay.vehicleNumber}</p>
-                )}
-                <p className="text-xs text-gray-500">Zgłoszono: {getReportTime()}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Number of Reports */}
-          <div className="bg-gray-50 rounded-lg p-3">
-            <div className="flex items-center space-x-2">
-              <span className="text-lg">👥</span>
-              <div>
-                <p className="text-xs text-gray-600">Liczba Zgłoszeń</p>
+              {/* Issue Type */}
+              <div className="bg-gray-50 rounded-lg p-3 mb-3">
                 <div className="flex items-center space-x-2">
-                  <p className="text-sm font-semibold text-gray-800">{numberOfReports}</p>
-                  <span className={`
-                    px-1.5 py-0.5 rounded-full text-xs font-medium
-                    ${getSeverityColor(numberOfReports)}
-                  `}>
-                    {numberOfReports >= 6 ? 'Wysoki' : numberOfReports >= 3 ? 'Średni' : 'Niski'}
-                  </span>
+                  <span className="text-lg">{getIssueIcon(issueType)}</span>
+                  <div>
+                    <p className="text-xs text-gray-600">Typ Problemu</p>
+                    <p className="text-sm font-semibold text-gray-800">{getIssueTypeLabel(selectedIssueType, issueType)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg">📍</span>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-600">Zgłoszona Lokalizacja</p>
+                    <p className="text-sm font-semibold text-gray-800">{reportedLocation}</p>
+                    {firstCollision?.delay?.vehicleNumber && (
+                      <p className="text-xs text-gray-500">Pojazd: {firstCollision.delay.vehicleNumber}</p>
+                    )}
+                    <p className="text-xs text-gray-500">Zgłoszono: {getReportTime()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Number of Reports */}
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg">👥</span>
+                  <div>
+                    <p className="text-xs text-gray-600">Liczba Zgłoszeń</p>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-semibold text-gray-800">{numberOfReports}</p>
+                      <span className={`
+                        px-1.5 py-0.5 rounded-full text-xs font-medium
+                        ${getSeverityColor(numberOfReports)}
+                      `}>
+                        {numberOfReports >= 6 ? 'Wysoki' : numberOfReports >= 3 ? 'Średni' : 'Niski'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Footer */}
-        <div className="p-3 bg-gray-50 border-t">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('Delay confirmed by user - closing popup');
-                handleClose(); // Close the popup when confirmed
-              }}
-              className="bg-green-500 hover:bg-green-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Potwierdź
-            </button>
-            <button
-              onClick={handleClose}
-              className="bg-red-500 hover:bg-red-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Odrzuć
-            </button>
+            {/* Footer */}
+            <div className="p-3 bg-gray-50 border-t">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Delay confirmed by user - closing popup');
+                    handleClose();
+                  }}
+                  className="bg-green-500 hover:bg-green-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Potwierdź
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClose();
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white py-2 px-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Odrzuć
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
