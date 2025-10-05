@@ -701,20 +701,72 @@ export default function GoogleMapsComponent({
         // Info window for delay details
         const infoWindow = new window.google.maps.InfoWindow({
           content: `
-            <div style="max-width: 280px;">
-              <h3 style="margin: 0 0 10px 0; font-size: 16px; color: ${delayInfo.color};">
-                ${delayInfo.icon} ${delayInfo.name}
-              </h3>
-              ${delay.vehicleNumber ? `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Vehicle:</strong> ${delay.vehicleNumber}</p>` : ''}
-              <p style="margin: 5px 0; font-size: 12px; color: #666;">
-                <strong>Location:</strong> ${delay.location.lat.toFixed(4)}, ${delay.location.lng.toFixed(4)}
-              </p>
-              <p style="margin: 5px 0; font-size: 12px; color: #666;">
-                <strong>Reported:</strong> ${new Date(delay.timestamp).toLocaleString()}
-              </p>
-              <p style="margin: 5px 0; font-size: 12px; color: #666;">
-                <strong>Report ID:</strong> ${delay.id}
-              </p>
+            <div style="max-width: 280px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              <div style="text-align: center; margin-bottom: 15px;">
+                <h3 style="margin: 0 0 5px 0; font-size: 18px; font-weight: 600; color: ${delayInfo.color};">
+                  ${delayInfo.icon} ${delayInfo.name}
+                </h3>
+                <p style="margin: 0; font-size: 12px; color: #888; font-style: italic;">
+                  Zgłoszenie problemu
+                </p>
+              </div>
+              
+              ${delay.vehicleNumber ? `
+                <div style="background: #f8f9fa; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;">
+                  <p style="margin: 0; font-size: 14px; color: #333;">
+                    <strong>🚌 Pojazd:</strong> ${delay.vehicleNumber}
+                  </p>
+                </div>
+              ` : ''}
+              
+              <div style="background: #f8f9fa; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;">
+                <p style="margin: 0; font-size: 14px; color: #333;">
+                  <strong>📅 Zgłoszono:</strong> ${new Date(delay.timestamp).toLocaleDateString('pl-PL')} o ${new Date(delay.timestamp).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              
+              <div style="display: flex; gap: 10px;">
+                <button 
+                  id="approve-delay-${delay.id}" 
+                  style="
+                    flex: 1;
+                    background-color: #16a34a;
+                    color: white;
+                    border: none;
+                    padding: 10px 16px;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+                  "
+                  onmouseover="this.style.backgroundColor='#15803d'; this.style.transform='translateY(-1px)'"
+                  onmouseout="this.style.backgroundColor='#16a34a'; this.style.transform='translateY(0)'"
+                >
+                  ✓ Zatwierdź
+                </button>
+                <button 
+                  id="deny-delay-${delay.id}" 
+                  style="
+                    flex: 1;
+                    background-color: #dc2626;
+                    color: white;
+                    border: none;
+                    padding: 10px 16px;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+                  "
+                  onmouseover="this.style.backgroundColor='#b91c1c'; this.style.transform='translateY(-1px)'"
+                  onmouseout="this.style.backgroundColor='#dc2626'; this.style.transform='translateY(0)'"
+                >
+                  ✕ Odrzuć
+                </button>
+              </div>
             </div>
           `
         });
@@ -722,6 +774,30 @@ export default function GoogleMapsComponent({
         marker.addListener('click', () => {
           console.log('🚨 Delay marker clicked:', delay.id);
           infoWindow.open(mapInstanceRef.current, marker);
+          
+          // Add event listeners for approve/deny buttons after info window opens
+          setTimeout(() => {
+            const approveBtn = document.getElementById(`approve-delay-${delay.id}`);
+            const denyBtn = document.getElementById(`deny-delay-${delay.id}`);
+            
+            if (approveBtn) {
+              approveBtn.addEventListener('click', () => {
+                console.log('✅ Approved delay report:', delay.id);
+                // TODO: Add API call to approve delay
+                // You can add your approval logic here
+                infoWindow.close();
+              });
+            }
+            
+            if (denyBtn) {
+              denyBtn.addEventListener('click', () => {
+                console.log('❌ Denied delay report:', delay.id);
+                // TODO: Add API call to deny/remove delay
+                // You can add your denial logic here
+                infoWindow.close();
+              });
+            }
+          }, 100); // Small delay to ensure DOM elements are rendered
         });
 
         delayMarkersRef.current.push(marker);

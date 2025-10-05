@@ -183,6 +183,41 @@ export default function ReportDifficultyDrawer({
         {/* Content */}
         <div className="px-4 py-6">
           <div className="space-y-6">
+            {/* Location Section - moved to top */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <label className="text-sm font-medium text-gray-700 block mb-2">
+                Lokalizacja
+              </label>
+              {isGettingLocation ? (
+                <p className="text-sm text-gray-500">Pobieranie lokalizacji...</p>
+              ) : location ? (
+                <div>
+                  <p className="text-sm text-gray-600">
+                    📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+                  </p>
+                  {locationError && (
+                    <p className="text-xs text-orange-600 mt-1">
+                      {locationError} (Używam domyślnej lokalizacji)
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-red-500">Nie można pobrać lokalizacji</p>
+              )}
+              {locationError && !location && (
+                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                  <p className="text-xs text-orange-700">{locationError}</p>
+                </div>
+              )}
+              <button
+                onClick={getCurrentLocation}
+                disabled={isGettingLocation}
+                className="mt-3 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+              >
+                {isGettingLocation ? 'Pobieranie lokalizacji...' : 'Odśwież lokalizację'}
+              </button>
+            </div>
+
             {/* Vehicle Number Input */}
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-2">
@@ -216,40 +251,6 @@ export default function ReportDifficultyDrawer({
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <label className="text-sm font-medium text-gray-700 block mb-2">
-                Lokalizacja
-              </label>
-              {isGettingLocation ? (
-                <p className="text-sm text-gray-500">Pobieranie lokalizacji...</p>
-              ) : location ? (
-                <div>
-                  <p className="text-sm text-gray-600">
-                    📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-                  </p>
-                  {locationError && (
-                    <p className="text-xs text-orange-600 mt-1">
-                      {locationError} (Używam domyślnej lokalizacji)
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-red-500">Nie można pobrać lokalizacji</p>
-              )}
-              {locationError && !location && (
-                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
-                  <p className="text-xs text-orange-700">{locationError}</p>
-                </div>
-              )}
-              <button
-                onClick={getCurrentLocation}
-                disabled={isGettingLocation}
-                className="mt-3 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-              >
-                {isGettingLocation ? 'Pobieranie lokalizacji...' : 'Odśwież lokalizację'}
-              </button>
             </div>
           </div>
         </div>

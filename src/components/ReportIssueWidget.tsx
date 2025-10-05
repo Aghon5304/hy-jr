@@ -57,18 +57,18 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
 
   const styles = {
     container: isExpanded 
-      ? "absolute bottom-0 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 z-[9999] w-80"
+      ? "absolute bottom-0 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 z-[9999] w-80 max-h-[70vh] overflow-y-auto"
       : "bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 relative w-full",
-    button: "w-full p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50",
+    button: "w-full p-3 flex items-center justify-between cursor-pointer hover:bg-gray-50",
     buttonText: "font-medium text-gray-900",
     expandIcon: "text-gray-500 transition-transform duration-300",
-    form: "p-4 border-t border-gray-200 space-y-4",
+    form: "p-3 border-t border-gray-200 space-y-3",
     radioGroup: "flex space-x-4",
     radioLabel: "flex items-center space-x-2 cursor-pointer",
     radioInput: "text-blue-600",
-    input: "w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
-    select: "w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
-    submitButton: "w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:bg-gray-300",
+    input: "w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+    select: "w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500",
+    submitButton: "w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:bg-gray-300",
     cancelButton: "w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
   };
 
@@ -88,7 +88,7 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
         <div className={styles.form}>
           {/* Location Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Where are you?
             </label>
             <div className={styles.radioGroup}>
@@ -101,7 +101,7 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
                   onChange={() => handleLocationChange('on_vehicle')}
                   className={styles.radioInput}
                 />
-                <span>🚌 On Vehicle</span>
+                <span className="text-sm">🚌 On Vehicle</span>
               </label>
               <label className={styles.radioLabel}>
                 <input
@@ -112,7 +112,7 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
                   onChange={() => handleLocationChange('at_stop')}
                   className={styles.radioInput}
                 />
-                <span>🚏 At Stop</span>
+                <span className="text-sm">🚏 At Stop</span>
               </label>
             </div>
           </div>
@@ -121,7 +121,7 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
           {report.reporterLocation === 'on_vehicle' && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Vehicle Number
                 </label>
                 <input
@@ -134,7 +134,7 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Delay Reason
                 </label>
                 <select
@@ -154,7 +154,7 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
 
               {report.delayReason === DelayReason.OTHER && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Describe the issue
                   </label>
                   <input
@@ -172,7 +172,7 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
           {/* At Stop Fields */}
           {report.reporterLocation === 'at_stop' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Line Number
               </label>
               <input
@@ -186,7 +186,7 @@ export default function ReportIssueWidget({ onSubmitReport }: ReportIssueWidgetP
           )}
 
           {/* Action Buttons */}
-          <div className="space-y-2">
+          <div className="space-y-1 pt-1">
             <button
               onClick={handleSubmit}
               disabled={!isValidReport()}
